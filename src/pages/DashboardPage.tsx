@@ -248,7 +248,7 @@ export default function DashboardPage() {
 
       {/* Heatmap */}
       {(role === 'admin' || role === 'jefatura') && (
-        <RiskHeatmap props={properties} />
+        <PropertyMap props={properties} />
       )}
     </div>
   );
