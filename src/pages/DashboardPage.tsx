@@ -1,8 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, FileText, Wrench, AlertTriangle, TrendingUp, ArrowRight } from 'lucide-react';
+import { Building2, FileText, Wrench, AlertTriangle, TrendingUp, ArrowRight, MapPin } from 'lucide-react';
 import { properties, contracts, maintenanceTickets, alerts, formatCLP, type Property } from '@/data/mockData';
 import { useRole } from '@/hooks/useRole';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 function KPICard({ label, value, icon: Icon, subtitle, trend }: {
   label: string; value: string | number; icon: React.ElementType; subtitle?: string; trend?: string;
