@@ -82,6 +82,7 @@ function generateProperties(count: number): Property[] {
   return Array.from({ length: count }, (_, i) => {
     const cityIdx = i % cities.length;
     const type = types[i % 3];
+    const [baseLat, baseLng] = cityCoords[cityIdx];
     return {
       id: `PROP-${String(i + 1).padStart(4, '0')}`,
       name: `${randomFrom(names)} ${cities[cityIdx]}`,
@@ -94,6 +95,8 @@ function generateProperties(count: number): Property[] {
       responsible: randomFrom(responsibles),
       contractId: type !== 'interno' ? `CTR-${String(i + 1).padStart(4, '0')}` : null,
       riskLevel: randomFrom(risks),
+      lat: baseLat + (Math.random() - 0.5) * 0.04,
+      lng: baseLng + (Math.random() - 0.5) * 0.04,
     };
   });
 }
