@@ -16,6 +16,8 @@ export interface Property {
   responsible: string;
   contractId: string | null;
   riskLevel: 'ok' | 'warning' | 'critical';
+  lat: number;
+  lng: number;
 }
 
 export interface Contract {
@@ -57,6 +59,11 @@ export interface Alert {
 
 const cities = ['Santiago Centro', 'Las Condes', 'Providencia', 'Vitacura', 'Ñuñoa', 'La Florida', 'Maipú', 'Concepción', 'Valparaíso', 'Antofagasta', 'Temuco', 'Puerto Montt'];
 const regions = ['Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Biobío', 'Valparaíso', 'Antofagasta', 'Araucanía', 'Los Lagos'];
+const cityCoords: [number, number][] = [
+  [-33.4489, -70.6693], [-33.4080, -70.5670], [-33.4264, -70.6100], [-33.3850, -70.5790],
+  [-33.4560, -70.5980], [-33.5170, -70.5980], [-33.5100, -70.7580], [-36.8270, -73.0500],
+  [-33.0460, -71.6200], [-23.6500, -70.4000], [-38.7400, -72.5900], [-41.4700, -72.9400],
+];
 const responsibles = ['Juan Pérez', 'María González', 'Carlos López', 'Ana Rodríguez', 'Pedro Martínez', 'Sofía Torres', 'Diego Herrera'];
 const counterparts = ['Inmobiliaria Andes SpA', 'Corp. Bienes Raíces Pacífico', 'Gestión Propiedades Sur Ltda.', 'Inversiones Norte S.A.', 'Holding Territorial Central'];
 
@@ -75,6 +82,7 @@ function generateProperties(count: number): Property[] {
   return Array.from({ length: count }, (_, i) => {
     const cityIdx = i % cities.length;
     const type = types[i % 3];
+    const [baseLat, baseLng] = cityCoords[cityIdx];
     return {
       id: `PROP-${String(i + 1).padStart(4, '0')}`,
       name: `${randomFrom(names)} ${cities[cityIdx]}`,
@@ -87,6 +95,8 @@ function generateProperties(count: number): Property[] {
       responsible: randomFrom(responsibles),
       contractId: type !== 'interno' ? `CTR-${String(i + 1).padStart(4, '0')}` : null,
       riskLevel: randomFrom(risks),
+      lat: baseLat + (Math.random() - 0.5) * 0.04,
+      lng: baseLng + (Math.random() - 0.5) * 0.04,
     };
   });
 }

@@ -1,8 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, FileText, Wrench, AlertTriangle, TrendingUp, ArrowRight } from 'lucide-react';
+import { Building2, FileText, Wrench, AlertTriangle, TrendingUp, ArrowRight, MapPin } from 'lucide-react';
 import { properties, contracts, maintenanceTickets, alerts, formatCLP, type Property } from '@/data/mockData';
 import { useRole } from '@/hooks/useRole';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 function KPICard({ label, value, icon: Icon, subtitle, trend }: {
   label: string; value: string | number; icon: React.ElementType; subtitle?: string; trend?: string;
@@ -49,35 +52,60 @@ function AlertBanner() {
   );
 }
 
-function RiskHeatmap({ props }: { props: Property[] }) {
-  const cells = props.slice(0, 300);
+const typeColors: Record<string, string> = {
+  interno: '#64748b',
+  arrendatario: '#1e40af',
+  arrendador: '#6366f1',
+};
+
+function createIcon(color: string) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+  });
+}
+
+function PropertyMap({ props }: { props: Property[] }) {
   return (
     <div className="kpi-card">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">
-        Mapa de Riesgo — {props.length} Propiedades
+        Ubicación de Propiedades — {props.length} en total
       </p>
-      <div className="grid gap-[2px]" style={{ gridTemplateColumns: 'repeat(20, 1fr)' }}>
-        {cells.map((p) => (
-          <div
-            key={p.id}
-            title={`${p.id}: ${p.name}`}
-            className={`aspect-square rounded-sm cursor-pointer transition-all duration-150 hover:scale-150 hover:z-10 relative
-              ${p.riskLevel === 'ok' ? 'bg-slate-200 hover:bg-slate-300' : ''}
-              ${p.riskLevel === 'warning' ? 'bg-amber-400 hover:bg-amber-500' : ''}
-              ${p.riskLevel === 'critical' ? 'bg-red-400 hover:bg-red-500' : ''}
-            `}
+      <div className="h-[320px] rounded overflow-hidden border border-border">
+        <MapContainer
+          center={[-33.45, -70.65]}
+          zoom={4}
+          scrollWheelZoom={true}
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-        ))}
+          {props.map(p => (
+            <Marker key={p.id} position={[p.lat, p.lng]} icon={createIcon(typeColors[p.type] || '#64748b')}>
+              <Popup>
+                <div className="text-xs">
+                  <p className="font-semibold">{p.name}</p>
+                  <p className="text-muted-foreground">{p.address}, {p.city}</p>
+                  <p className="mt-1 capitalize">{p.type} · {p.status}</p>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
       </div>
       <div className="flex items-center gap-4 mt-3">
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <div className="h-2.5 w-2.5 rounded-sm bg-slate-200" /> Sin riesgo
+          <div className="h-2.5 w-2.5 rounded-full" style={{ background: '#64748b' }} /> Uso Interno
         </div>
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <div className="h-2.5 w-2.5 rounded-sm bg-amber-400" /> Mantenimiento
+          <div className="h-2.5 w-2.5 rounded-full" style={{ background: '#1e40af' }} /> Arrendatario
         </div>
         <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <div className="h-2.5 w-2.5 rounded-sm bg-red-400" /> Contrato
+          <div className="h-2.5 w-2.5 rounded-full" style={{ background: '#6366f1' }} /> Arrendador
         </div>
       </div>
     </div>
@@ -220,7 +248,7 @@ export default function DashboardPage() {
 
       {/* Heatmap */}
       {(role === 'admin' || role === 'jefatura') && (
-        <RiskHeatmap props={properties} />
+        <PropertyMap props={properties} />
       )}
     </div>
   );
