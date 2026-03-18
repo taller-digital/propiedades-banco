@@ -16,6 +16,8 @@ export interface Property {
   responsible: string;
   contractId: string | null;
   riskLevel: 'ok' | 'warning' | 'critical';
+  lat: number;
+  lng: number;
 }
 
 export interface Contract {
