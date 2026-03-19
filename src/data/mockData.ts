@@ -3,6 +3,8 @@ export type PropertyStatus = 'activo' | 'en_mantenimiento' | 'inactivo';
 export type ContractStatus = 'vigente' | 'por_vencer' | 'vencido';
 export type MaintenanceStatus = 'pendiente' | 'en_proceso' | 'resuelto';
 export type UserRole = 'admin' | 'operaciones' | 'jefatura';
+export type ExpenseType = 'luz' | 'agua' | 'gastos_comunes' | 'internet' | 'otros';
+export type SemaphoreStatus = 'al_dia' | 'por_vencer' | 'vencido';
 
 export interface Property {
   id: string;
@@ -33,6 +35,17 @@ export interface Contract {
   documents: string[];
 }
 
+export interface Expense {
+  id: string;
+  propertyId: string;
+  propertyName: string;
+  type: ExpenseType;
+  accountId: string;
+  dueDate: string;
+  amount: number;
+  status: SemaphoreStatus;
+}
+
 export interface MaintenanceTicket {
   id: string;
   propertyId: string;
@@ -49,13 +62,53 @@ export interface MaintenanceTicket {
 
 export interface Alert {
   id: string;
-  type: 'contrato' | 'mantenimiento' | 'documento';
+  type: 'contrato' | 'mantenimiento' | 'documento' | 'gasto';
   message: string;
   severity: 'info' | 'warning' | 'critical';
   propertyId: string;
   date: string;
   read: boolean;
 }
+
+// ── Helpers ──
+
+export function getDaysRemaining(dateStr: string): number {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr + 'T12:00:00');
+  target.setHours(0, 0, 0, 0);
+  return Math.floor((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export function getContractSemaphore(endDate: string, thresholdDays = 90): SemaphoreStatus {
+  const days = getDaysRemaining(endDate);
+  if (days < 0) return 'vencido';
+  if (days <= thresholdDays) return 'por_vencer';
+  return 'al_dia';
+}
+
+export function getExpenseSemaphore(dueDate: string, thresholdDays = 7): SemaphoreStatus {
+  const days = getDaysRemaining(dueDate);
+  if (days < 0) return 'vencido';
+  if (days <= thresholdDays) return 'por_vencer';
+  return 'al_dia';
+}
+
+export const expenseTypeLabels: Record<ExpenseType, string> = {
+  luz: 'Luz',
+  agua: 'Agua',
+  gastos_comunes: 'Gastos Comunes',
+  internet: 'Internet',
+  otros: 'Otros',
+};
+
+export const semaphoreLabels: Record<SemaphoreStatus, string> = {
+  al_dia: 'Al día',
+  por_vencer: 'Por vencer',
+  vencido: 'Vencido',
+};
+
+// ── Data generation ──
 
 const cities = ['Santiago Centro', 'Las Condes', 'Providencia', 'Vitacura', 'Ñuñoa', 'La Florida', 'Maipú', 'Concepción', 'Valparaíso', 'Antofagasta', 'Temuco', 'Puerto Montt'];
 const regions = ['Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Biobío', 'Valparaíso', 'Antofagasta', 'Araucanía', 'Los Lagos'];
@@ -73,7 +126,6 @@ function randomFrom<T>(arr: T[]): T {
 
 function generateProperties(count: number): Property[] {
   const types: PropertyType[] = ['interno', 'arrendatario', 'arrendador'];
-  const statuses: PropertyStatus[] = ['activo', 'en_mantenimiento', 'inactivo'];
   const risks: Property['riskLevel'][] = ['ok', 'warning', 'critical'];
   const names = [
     'Sucursal', 'Oficina', 'Bodega', 'Local Comercial', 'Edificio', 'Casa Matriz', 'Agencia', 'Centro de Operaciones', 'Almacén', 'Torre'
@@ -105,7 +157,7 @@ export const properties: Property[] = generateProperties(312);
 
 export const contracts: Contract[] = properties
   .filter(p => p.contractId)
-  .map((p, i) => {
+  .map((p) => {
     const start = new Date(2022, Math.floor(Math.random() * 12), 1);
     const end = new Date(start);
     end.setFullYear(end.getFullYear() + Math.floor(Math.random() * 3) + 1);
@@ -125,6 +177,34 @@ export const contracts: Contract[] = properties
       documents: [`Contrato_${p.contractId}.pdf`, `Anexo_${p.contractId}.pdf`],
     };
   });
+
+// ── Expenses ──
+
+const expenseTypes: ExpenseType[] = ['luz', 'agua', 'gastos_comunes', 'internet', 'otros'];
+
+export const expenses: Expense[] = properties.flatMap((p, pi) => {
+  // Each property gets 2-5 expense accounts
+  const count = 2 + (pi % 4);
+  return Array.from({ length: count }, (_, ei) => {
+    const type = expenseTypes[(pi + ei) % expenseTypes.length];
+    // Spread due dates: some past, some near, some future
+    const offsetDays = ((pi * 7 + ei * 13) % 60) - 15; // -15 to +45
+    const due = new Date();
+    due.setDate(due.getDate() + offsetDays);
+    const dueDateStr = due.toISOString().split('T')[0];
+
+    return {
+      id: `EXP-${String(pi * 10 + ei + 1).padStart(5, '0')}`,
+      propertyId: p.id,
+      propertyName: p.name,
+      type,
+      accountId: `${String(10000 + (pi * 7 + ei * 31) % 90000)}`,
+      dueDate: dueDateStr,
+      amount: Math.floor(Math.random() * 500000) + 20000,
+      status: getExpenseSemaphore(dueDateStr, 7),
+    };
+  });
+});
 
 export const maintenanceTickets: MaintenanceTicket[] = Array.from({ length: 45 }, (_, i) => {
   const prop = randomFrom(properties);
@@ -148,7 +228,9 @@ export const maintenanceTickets: MaintenanceTicket[] = Array.from({ length: 45 }
   };
 });
 
-export const alerts: Alert[] = [
+// ── Alerts (combined: contracts + expenses) ──
+
+const contractAlerts: Alert[] = [
   ...contracts.filter(c => c.status === 'por_vencer').slice(0, 5).map((c, i) => ({
     id: `ALT-CTR-${i + 1}`,
     type: 'contrato' as const,
@@ -167,7 +249,33 @@ export const alerts: Alert[] = [
     date: new Date().toISOString().split('T')[0],
     read: false,
   })),
-  ...maintenanceTickets.filter(m => m.priority === 'critica' && m.status !== 'resuelto').slice(0, 3).map((m, i) => ({
+];
+
+const expenseAlerts: Alert[] = [
+  ...expenses.filter(e => e.status === 'vencido').slice(0, 5).map((e, i) => ({
+    id: `ALT-EXP-V-${i + 1}`,
+    type: 'gasto' as const,
+    message: `Gasto ${expenseTypeLabels[e.type]} (cuenta ${e.accountId}) de "${e.propertyName}" está VENCIDO`,
+    severity: 'critical' as const,
+    propertyId: e.propertyId,
+    date: new Date().toISOString().split('T')[0],
+    read: false,
+  })),
+  ...expenses.filter(e => e.status === 'por_vencer').slice(0, 5).map((e, i) => ({
+    id: `ALT-EXP-P-${i + 1}`,
+    type: 'gasto' as const,
+    message: `Gasto ${expenseTypeLabels[e.type]} (cuenta ${e.accountId}) de "${e.propertyName}" por vencer`,
+    severity: 'warning' as const,
+    propertyId: e.propertyId,
+    date: new Date().toISOString().split('T')[0],
+    read: false,
+  })),
+];
+
+const maintenanceAlerts: Alert[] = maintenanceTickets
+  .filter(m => m.priority === 'critica' && m.status !== 'resuelto')
+  .slice(0, 3)
+  .map((m, i) => ({
     id: `ALT-MNT-${i + 1}`,
     type: 'mantenimiento' as const,
     message: `Mantención crítica pendiente: "${m.title}" en ${m.propertyName}`,
@@ -175,8 +283,9 @@ export const alerts: Alert[] = [
     propertyId: m.propertyId,
     date: m.createdAt,
     read: false,
-  })),
-];
+  }));
+
+export const alerts: Alert[] = [...contractAlerts, ...expenseAlerts, ...maintenanceAlerts];
 
 export function formatCLP(amount: number): string {
   return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(amount);

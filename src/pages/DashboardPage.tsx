@@ -1,25 +1,26 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, FileText, Wrench, AlertTriangle, TrendingUp, ArrowRight, MapPin } from 'lucide-react';
-import { properties, contracts, maintenanceTickets, alerts, formatCLP, type Property } from '@/data/mockData';
+import { Building2, FileText, Wrench, AlertTriangle, TrendingUp, ArrowRight, MapPin, Zap, DollarSign } from 'lucide-react';
+import { properties, contracts, maintenanceTickets, alerts, expenses, formatCLP, type Property, getContractSemaphore, getDaysRemaining } from '@/data/mockData';
 import { useRole } from '@/hooks/useRole';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import SemaphoreBadge from '@/components/SemaphoreBadge';
 
-function KPICard({ label, value, icon: Icon, subtitle, trend }: {
-  label: string; value: string | number; icon: React.ElementType; subtitle?: string; trend?: string;
+function KPICard({ label, value, icon: Icon, subtitle, trend, accent }: {
+  label: string; value: string | number; icon: React.ElementType; subtitle?: string; trend?: string; accent?: 'destructive' | 'warning';
 }) {
   return (
     <div className="kpi-card">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{label}</p>
-          <p className="text-2xl font-semibold font-mono-numeric mt-1">{value}</p>
+          <p className={`text-2xl font-semibold font-mono-numeric mt-1 ${accent === 'destructive' ? 'text-red-600' : accent === 'warning' ? 'text-amber-600' : ''}`}>{value}</p>
           {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
         </div>
-        <div className="p-2 bg-muted rounded">
-          <Icon className="h-5 w-5 text-muted-foreground" />
+        <div className={`p-2 rounded ${accent === 'destructive' ? 'bg-red-50' : accent === 'warning' ? 'bg-amber-50' : 'bg-muted'}`}>
+          <Icon className={`h-5 w-5 ${accent === 'destructive' ? 'text-red-500' : accent === 'warning' ? 'text-amber-500' : 'text-muted-foreground'}`} />
         </div>
       </div>
       {trend && (
@@ -32,17 +33,28 @@ function KPICard({ label, value, icon: Icon, subtitle, trend }: {
   );
 }
 
-function AlertBanner() {
-  const criticalAlerts = alerts.filter(a => a.severity === 'critical' && !a.read);
-  if (criticalAlerts.length === 0) return null;
+function CombinedAlertBanner() {
+  const contractCritical = contracts.filter(c => c.status === 'vencido').length;
+  const contractWarning = contracts.filter(c => c.status === 'por_vencer').length;
+  const expensesCritical = expenses.filter(e => e.status === 'vencido').length;
+  const expensesWarning = expenses.filter(e => e.status === 'por_vencer').length;
+  const totalAlerts = contractCritical + contractWarning + expensesCritical + expensesWarning;
+
+  if (totalAlerts === 0) return null;
+
+  const parts: string[] = [];
+  if (contractCritical > 0) parts.push(`${contractCritical} contrato(s) vencido(s)`);
+  if (contractWarning > 0) parts.push(`${contractWarning} contrato(s) por vencer`);
+  if (expensesCritical > 0) parts.push(`${expensesCritical} gasto(s) vencido(s)`);
+  if (expensesWarning > 0) parts.push(`${expensesWarning} gasto(s) por vencer`);
 
   return (
     <div className="critical-alert rounded-md mb-6">
       <div className="flex items-center gap-3">
         <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
         <div className="flex-1">
-          <p className="text-sm font-semibold">Acción requerida: {criticalAlerts.length} alerta(s) crítica(s)</p>
-          <p className="text-xs mt-0.5">{criticalAlerts[0].message}</p>
+          <p className="text-sm font-semibold">{totalAlerts} alertas activas: {parts.slice(0, 2).join(' y ')}</p>
+          {parts.length > 2 && <p className="text-xs mt-0.5">{parts.slice(2).join(', ')}</p>}
         </div>
         <Link to="/alertas" className="text-xs font-medium text-destructive hover:underline shrink-0">
           Ver todas →
@@ -74,16 +86,8 @@ function PropertyMap({ props }: { props: Property[] }) {
         Ubicación de Propiedades — {props.length} en total
       </p>
       <div className="h-[320px] rounded overflow-hidden border border-border">
-        <MapContainer
-          center={[-33.45, -70.65]}
-          zoom={4}
-          scrollWheelZoom={true}
-          style={{ height: '100%', width: '100%' }}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+        <MapContainer center={[-33.45, -70.65]} zoom={4} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
+          <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           {props.map(p => (
             <Marker key={p.id} position={[p.lat, p.lng]} icon={createIcon(typeColors[p.type] || '#64748b')}>
               <Popup>
@@ -98,15 +102,11 @@ function PropertyMap({ props }: { props: Property[] }) {
         </MapContainer>
       </div>
       <div className="flex items-center gap-4 mt-3">
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <div className="h-2.5 w-2.5 rounded-full" style={{ background: '#64748b' }} /> Uso Interno
-        </div>
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <div className="h-2.5 w-2.5 rounded-full" style={{ background: '#1e40af' }} /> Arrendatario
-        </div>
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <div className="h-2.5 w-2.5 rounded-full" style={{ background: '#6366f1' }} /> Arrendador
-        </div>
+        {[{ label: 'Uso Interno', color: '#64748b' }, { label: 'Arrendatario', color: '#1e40af' }, { label: 'Arrendador', color: '#6366f1' }].map(l => (
+          <div key={l.label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <div className="h-2.5 w-2.5 rounded-full" style={{ background: l.color }} /> {l.label}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -126,17 +126,12 @@ function ContractExpiryChart() {
 
   return (
     <div className="kpi-card">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-4">
-        Contratos por Vencer / Vencidos
-      </p>
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-4">Contratos por Vencer / Vencidos</p>
       <div className="flex items-end gap-2 h-32">
         {byMonth.map(([month, count]) => (
           <div key={month} className="flex-1 flex flex-col items-center gap-1">
             <span className="text-[10px] font-mono-numeric text-muted-foreground">{count}</span>
-            <div
-              className="w-full bg-primary/80 rounded-t transition-all duration-300"
-              style={{ height: `${(count / max) * 100}%`, minHeight: 4 }}
-            />
+            <div className="w-full bg-primary/80 rounded-t transition-all duration-300" style={{ height: `${(count / max) * 100}%`, minHeight: 4 }} />
             <span className="text-[9px] text-muted-foreground">{month.substring(5)}/{month.substring(2, 4)}</span>
           </div>
         ))}
@@ -150,7 +145,6 @@ function TypeDistribution() {
   const arrendatario = properties.filter(p => p.type === 'arrendatario').length;
   const arrendador = properties.filter(p => p.type === 'arrendador').length;
   const total = properties.length;
-
   const items = [
     { label: 'Uso Interno', count: interno, pct: ((interno / total) * 100).toFixed(1), color: 'bg-slate-400' },
     { label: 'Arrendatario', count: arrendatario, pct: ((arrendatario / total) * 100).toFixed(1), color: 'bg-primary' },
@@ -159,14 +153,9 @@ function TypeDistribution() {
 
   return (
     <div className="kpi-card">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-4">
-        Distribución por Tipo
-      </p>
-      {/* Stacked bar */}
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-4">Distribución por Tipo</p>
       <div className="h-3 flex rounded overflow-hidden mb-4">
-        {items.map(i => (
-          <div key={i.label} className={`${i.color} transition-all`} style={{ width: `${i.pct}%` }} />
-        ))}
+        {items.map(i => (<div key={i.label} className={`${i.color} transition-all`} style={{ width: `${i.pct}%` }} />))}
       </div>
       <div className="space-y-2">
         {items.map(i => (
@@ -183,15 +172,47 @@ function TypeDistribution() {
   );
 }
 
+function UpcomingContracts() {
+  const upcoming = useMemo(() => {
+    return contracts
+      .filter(c => c.status === 'por_vencer' || c.status === 'vencido')
+      .sort((a, b) => getDaysRemaining(a.endDate) - getDaysRemaining(b.endDate))
+      .slice(0, 6);
+  }, []);
+
+  return (
+    <div className="kpi-card">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Contratos Críticos</p>
+        <Link to="/contratos" className="text-[10px] text-primary font-medium hover:underline flex items-center gap-1">
+          Ver todo <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+      <div className="space-y-2.5">
+        {upcoming.map(c => {
+          const sem = getContractSemaphore(c.endDate);
+          return (
+            <div key={c.id} className="flex items-center gap-3 text-xs">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{c.propertyName}</p>
+                <p className="text-[10px] text-muted-foreground font-mono-numeric">{c.id}</p>
+              </div>
+              <SemaphoreBadge status={sem} dueDate={c.endDate} size="sm" />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function RecentActivity() {
   const recentTickets = maintenanceTickets.slice(0, 5);
 
   return (
     <div className="kpi-card">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
-          Actividad Reciente
-        </p>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Actividad Reciente</p>
         <Link to="/mantenimiento" className="text-[10px] text-primary font-medium hover:underline flex items-center gap-1">
           Ver todo <ArrowRight className="h-3 w-3" />
         </Link>
@@ -199,9 +220,7 @@ function RecentActivity() {
       <div className="space-y-3">
         {recentTickets.map(t => (
           <div key={t.id} className="flex items-start gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
-            <div className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${
-              t.status === 'pendiente' ? 'bg-amber-400' : t.status === 'en_proceso' ? 'bg-primary' : 'bg-success'
-            }`} />
+            <div className={`mt-0.5 h-2 w-2 rounded-full shrink-0 ${t.status === 'pendiente' ? 'bg-amber-400' : t.status === 'en_proceso' ? 'bg-primary' : 'bg-success'}`} />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium truncate">{t.title}</p>
               <p className="text-[10px] text-muted-foreground">{t.propertyName}</p>
@@ -221,6 +240,8 @@ export default function DashboardPage() {
   const contractsExpired = contracts.filter(c => c.status === 'vencido').length;
   const pendingMaintenance = maintenanceTickets.filter(t => t.status !== 'resuelto').length;
   const totalContractValue = contracts.reduce((s, c) => s + c.monthlyAmount, 0);
+  const expensesOverdue = expenses.filter(e => e.status === 'vencido').length;
+  const expensesDueSoon = expenses.filter(e => e.status === 'por_vencer').length;
 
   return (
     <div>
@@ -229,27 +250,29 @@ export default function DashboardPage() {
         <p className="text-sm text-muted-foreground mt-1">Resumen operativo — {new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
       </div>
 
-      <AlertBanner />
+      <CombinedAlertBanner />
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
         <KPICard label="Total Propiedades" value={totalProperties} icon={Building2} subtitle={`${properties.filter(p => p.status === 'activo').length} activas`} />
-        <KPICard label="Contratos por Vencer" value={contractsExpiring} icon={FileText} subtitle={`${contractsExpired} vencidos`} />
-        <KPICard label="Mantenciones Pendientes" value={pendingMaintenance} icon={Wrench} subtitle={`${maintenanceTickets.filter(t => t.priority === 'critica').length} críticas`} />
-        <KPICard label="Valor Mensual Contratos" value={formatCLP(totalContractValue)} icon={TrendingUp} />
+        <KPICard label="Contratos por Vencer" value={contractsExpiring} icon={FileText} subtitle={`en los próx. 90 días`} accent="warning" />
+        <KPICard label="Contratos Vencidos" value={contractsExpired} icon={FileText} accent="destructive" />
+        <KPICard label="Gastos Vencidos" value={expensesOverdue} icon={DollarSign} accent="destructive" />
+        <KPICard label="Gastos por Vencer" value={expensesDueSoon} icon={Zap} accent="warning" />
+        <KPICard label="Mantenciones Pend." value={pendingMaintenance} icon={Wrench} subtitle={`${maintenanceTickets.filter(t => t.priority === 'critica').length} críticas`} />
       </div>
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         <TypeDistribution />
         <ContractExpiryChart />
-        <RecentActivity />
+        <UpcomingContracts />
       </div>
 
-      {/* Heatmap */}
-      {(role === 'admin' || role === 'jefatura') && (
-        <PropertyMap props={properties} />
-      )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <RecentActivity />
+        {(role === 'admin' || role === 'jefatura') && <PropertyMap props={properties} />}
+      </div>
     </div>
   );
 }
