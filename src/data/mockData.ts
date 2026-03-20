@@ -5,6 +5,7 @@ export type MaintenanceStatus = 'pendiente' | 'en_proceso' | 'resuelto';
 export type UserRole = 'admin' | 'operaciones' | 'jefatura';
 export type ExpenseType = 'luz' | 'agua' | 'gastos_comunes' | 'internet' | 'otros';
 export type SemaphoreStatus = 'al_dia' | 'por_vencer' | 'vencido';
+export type AssetTag = 'comercial' | 'residencial' | 'industrial' | 'oficina' | 'mixto' | 'terreno' | 'bodega';
 
 export interface Property {
   id: string;
@@ -20,6 +21,18 @@ export interface Property {
   riskLevel: 'ok' | 'warning' | 'critical';
   lat: number;
   lng: number;
+  // New fields
+  rol: string;
+  seguros: string[];
+  photos: string[];
+  avaluoFiscal: number;
+  rut: string;
+  assetTags: AssetTag[];
+  m2Construidos: number;
+  m2Terreno: number;
+  escritura: string | null;
+  planos: string[];
+  valorContribucion: number;
 }
 
 export interface Contract {
@@ -94,6 +107,31 @@ export function getExpenseSemaphore(dueDate: string, thresholdDays = 7): Semapho
   return 'al_dia';
 }
 
+export function validateRut(rut: string): boolean {
+  const clean = rut.replace(/[.\-]/g, '');
+  if (clean.length < 2) return false;
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1).toUpperCase();
+  let sum = 0;
+  let mul = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += parseInt(body[i]) * mul;
+    mul = mul === 7 ? 2 : mul + 1;
+  }
+  const expected = 11 - (sum % 11);
+  const dvExpected = expected === 11 ? '0' : expected === 10 ? 'K' : String(expected);
+  return dv === dvExpected;
+}
+
+export function formatRut(rut: string): string {
+  const clean = rut.replace(/[.\-]/g, '');
+  if (clean.length < 2) return rut;
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1);
+  const formatted = body.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${formatted}-${dv}`;
+}
+
 export const expenseTypeLabels: Record<ExpenseType, string> = {
   luz: 'Luz',
   agua: 'Agua',
@@ -108,6 +146,16 @@ export const semaphoreLabels: Record<SemaphoreStatus, string> = {
   vencido: 'Vencido',
 };
 
+export const assetTagLabels: Record<AssetTag, string> = {
+  comercial: 'Comercial',
+  residencial: 'Residencial',
+  industrial: 'Industrial',
+  oficina: 'Oficina',
+  mixto: 'Mixto',
+  terreno: 'Terreno',
+  bodega: 'Bodega',
+};
+
 // ── Data generation ──
 
 const cities = ['Santiago Centro', 'Las Condes', 'Providencia', 'Vitacura', 'Ñuñoa', 'La Florida', 'Maipú', 'Concepción', 'Valparaíso', 'Antofagasta', 'Temuco', 'Puerto Montt'];
@@ -118,10 +166,44 @@ const cityCoords: [number, number][] = [
   [-33.0460, -71.6200], [-23.6500, -70.4000], [-38.7400, -72.5900], [-41.4700, -72.9400],
 ];
 const responsibles = ['Juan Pérez', 'María González', 'Carlos López', 'Ana Rodríguez', 'Pedro Martínez', 'Sofía Torres', 'Diego Herrera'];
-const counterparts = ['Inmobiliaria Andes SpA', 'Corp. Bienes Raíces Pacífico', 'Gestión Propiedades Sur Ltda.', 'Inversiones Norte S.A.', 'Holding Territorial Central'];
+const counterparts = ['Inmobiliaria Andes SpA', 'Corp. Bienes Raíces Pacífico', 'Gestión Inmuebles Sur Ltda.', 'Inversiones Norte S.A.', 'Holding Territorial Central'];
+
+const samplePhotos = [
+  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1554469384-e58fac16e23a?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=600&fit=crop',
+];
+
+const segurosOptions = ['Incendio', 'Terremoto', 'Robo', 'Responsabilidad Civil', 'Todo Riesgo', 'Daños a Terceros'];
+const allTags: AssetTag[] = ['comercial', 'residencial', 'industrial', 'oficina', 'mixto', 'terreno', 'bodega'];
 
 function randomFrom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomSubset<T>(arr: T[], min: number, max: number): T[] {
+  const count = min + Math.floor(Math.random() * (max - min + 1));
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
+function generateRut(seed: number): string {
+  const num = 10000000 + (seed * 7919) % 80000000;
+  const body = String(num);
+  let sum = 0;
+  let mul = 2;
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += parseInt(body[i]) * mul;
+    mul = mul === 7 ? 2 : mul + 1;
+  }
+  const r = 11 - (sum % 11);
+  const dv = r === 11 ? '0' : r === 10 ? 'K' : String(r);
+  return `${body}-${dv}`;
 }
 
 function generateProperties(count: number): Property[] {
@@ -135,20 +217,34 @@ function generateProperties(count: number): Property[] {
     const cityIdx = i % cities.length;
     const type = types[i % 3];
     const [baseLat, baseLng] = cityCoords[cityIdx];
+    const m2Terreno = 100 + Math.floor(Math.random() * 3000);
+    const m2Construidos = Math.floor(m2Terreno * (0.3 + Math.random() * 0.6));
     return {
-      id: `PROP-${String(i + 1).padStart(4, '0')}`,
+      id: `INM-${String(i + 1).padStart(4, '0')}`,
       name: `${randomFrom(names)} ${cities[cityIdx]}`,
       type,
       status: i % 7 === 0 ? 'en_mantenimiento' : i % 11 === 0 ? 'inactivo' : 'activo',
       address: `Av. ${randomFrom(['Apoquindo', 'Providencia', 'Libertador', 'Los Leones', 'Kennedy', 'Irarrázaval'])} ${1000 + i * 37}`,
       city: cities[cityIdx],
       region: regions[cityIdx],
-      area: 80 + Math.floor(Math.random() * 2000),
+      area: m2Construidos,
       responsible: randomFrom(responsibles),
       contractId: type !== 'interno' ? `CTR-${String(i + 1).padStart(4, '0')}` : null,
       riskLevel: randomFrom(risks),
       lat: baseLat + (Math.random() - 0.5) * 0.04,
       lng: baseLng + (Math.random() - 0.5) * 0.04,
+      // New fields
+      rol: `${100 + Math.floor(Math.random() * 900)}-${Math.floor(Math.random() * 9000)}`,
+      seguros: randomSubset(segurosOptions, 1, 3),
+      photos: randomSubset(samplePhotos, 2, 5),
+      avaluoFiscal: Math.floor(Math.random() * 800000000) + 50000000,
+      rut: formatRut(generateRut(i)),
+      assetTags: randomSubset(allTags, 1, 3),
+      m2Construidos,
+      m2Terreno,
+      escritura: i % 3 === 0 ? `Escritura_INM-${String(i + 1).padStart(4, '0')}.pdf` : null,
+      planos: i % 2 === 0 ? [`Plano_Piso1_INM-${String(i + 1).padStart(4, '0')}.pdf`, `Plano_Piso2_INM-${String(i + 1).padStart(4, '0')}.pdf`] : [],
+      valorContribucion: Math.floor(Math.random() * 5000000) + 200000,
     };
   });
 }
@@ -183,12 +279,10 @@ export const contracts: Contract[] = properties
 const expenseTypes: ExpenseType[] = ['luz', 'agua', 'gastos_comunes', 'internet', 'otros'];
 
 export const expenses: Expense[] = properties.flatMap((p, pi) => {
-  // Each property gets 2-5 expense accounts
   const count = 2 + (pi % 4);
   return Array.from({ length: count }, (_, ei) => {
     const type = expenseTypes[(pi + ei) % expenseTypes.length];
-    // Spread due dates: some past, some near, some future
-    const offsetDays = ((pi * 7 + ei * 13) % 60) - 15; // -15 to +45
+    const offsetDays = ((pi * 7 + ei * 13) % 60) - 15;
     const due = new Date();
     due.setDate(due.getDate() + offsetDays);
     const dueDateStr = due.toISOString().split('T')[0];

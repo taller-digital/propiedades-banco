@@ -10,7 +10,7 @@ import type { UserRole } from '@/data/mockData';
 
 const navItems = [
   { title: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['admin', 'operaciones', 'jefatura'] },
-  { title: 'Inventario', path: '/propiedades', icon: Building2, roles: ['admin', 'operaciones', 'jefatura'] },
+  { title: 'Inmuebles', path: '/inmuebles', icon: Building2, roles: ['admin', 'operaciones', 'jefatura'] },
   { title: 'Contratos', path: '/contratos', icon: FileText, roles: ['admin', 'jefatura'] },
   { title: 'Mantenimiento', path: '/mantenimiento', icon: Wrench, roles: ['admin', 'operaciones'] },
   { title: 'Documentos', path: '/documentos', icon: FolderOpen, roles: ['admin'] },

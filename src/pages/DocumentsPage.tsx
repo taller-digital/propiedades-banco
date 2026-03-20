@@ -24,7 +24,7 @@ export default function DocumentsPage() {
               <tr>
                 <th className="table-header-cell text-left">Documento</th>
                 <th className="table-header-cell text-left">Contrato</th>
-                <th className="table-header-cell text-left">Propiedad</th>
+                <th className="table-header-cell text-left">Inmueble</th>
                 <th className="table-header-cell text-center">Versión</th>
               </tr>
             </thead>
