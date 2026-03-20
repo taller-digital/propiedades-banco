@@ -1,12 +1,61 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Building2, FileText, Wrench, FolderOpen, MapPin, User, Calendar, DollarSign, Zap } from 'lucide-react';
-import { properties, contracts, maintenanceTickets, expenses, formatCLP, formatDate, getContractSemaphore, getExpenseSemaphore, getDaysRemaining, expenseTypeLabels } from '@/data/mockData';
+import { ArrowLeft, Building2, FileText, Wrench, FolderOpen, MapPin, User, Calendar, DollarSign, Zap, ChevronLeft, ChevronRight, Shield, Ruler, Tag, Image as ImageIcon } from 'lucide-react';
+import { properties, contracts, maintenanceTickets, expenses, formatCLP, formatDate, getContractSemaphore, getExpenseSemaphore, getDaysRemaining, expenseTypeLabels, assetTagLabels } from '@/data/mockData';
 import { useRole } from '@/hooks/useRole';
 import SemaphoreBadge from '@/components/SemaphoreBadge';
 
 const tabs = ['General', 'Contratos', 'Gastos Generales', 'Mantenimiento', 'Documentos'] as const;
 type Tab = typeof tabs[number];
+
+function PhotoGallery({ photos }: { photos: string[] }) {
+  const [current, setCurrent] = useState(0);
+
+  if (photos.length === 0) return null;
+
+  const prev = () => setCurrent(i => (i - 1 + photos.length) % photos.length);
+  const next = () => setCurrent(i => (i + 1) % photos.length);
+
+  return (
+    <div className="mb-6">
+      {/* Main image */}
+      <div className="relative rounded-lg overflow-hidden bg-muted border border-border aspect-[16/7]">
+        <img
+          src={photos[current]}
+          alt={`Foto ${current + 1}`}
+          className="w-full h-full object-cover"
+        />
+        {photos.length > 1 && (
+          <>
+            <button onClick={prev}
+              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-foreground/60 text-background flex items-center justify-center hover:bg-foreground/80 transition-colors active:scale-95">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button onClick={next}
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-foreground/60 text-background flex items-center justify-center hover:bg-foreground/80 transition-colors active:scale-95">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <div className="absolute bottom-3 right-3 bg-foreground/60 text-background text-[10px] font-mono-numeric px-2 py-0.5 rounded-full">
+              {current + 1} / {photos.length}
+            </div>
+          </>
+        )}
+      </div>
+      {/* Thumbnails */}
+      {photos.length > 1 && (
+        <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+          {photos.map((photo, i) => (
+            <button key={i} onClick={() => setCurrent(i)}
+              className={`shrink-0 w-16 h-12 rounded overflow-hidden border-2 transition-all active:scale-95
+                ${i === current ? 'border-primary ring-1 ring-primary/30' : 'border-border opacity-60 hover:opacity-100'}`}>
+              <img src={photo} alt={`Miniatura ${i + 1}`} className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,8 +67,8 @@ export default function PropertyDetailPage() {
   if (!property) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-muted-foreground">Propiedad no encontrada.</p>
-        <Link to="/propiedades" className="text-primary text-sm mt-2 hover:underline">← Volver al inventario</Link>
+        <p className="text-muted-foreground">Inmueble no encontrado.</p>
+        <Link to="/inmuebles" className="text-primary text-sm mt-2 hover:underline">← Volver al inventario</Link>
       </div>
     );
   }
@@ -41,7 +90,7 @@ export default function PropertyDetailPage() {
     <div>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
-        <Link to="/propiedades" className="hover:text-foreground">Inventario</Link>
+        <Link to="/inmuebles" className="hover:text-foreground">Inventario</Link>
         <span>/</span>
         <span>{typeLabel}</span>
         <span>/</span>
@@ -51,7 +100,7 @@ export default function PropertyDetailPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
-          <Link to="/propiedades" className="p-2 rounded hover:bg-muted transition-colors">
+          <Link to="/inmuebles" className="p-2 rounded hover:bg-muted transition-colors">
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
@@ -70,6 +119,9 @@ export default function PropertyDetailPage() {
         )}
       </div>
 
+      {/* Photo Gallery — above Estado Crítico sidebar */}
+      <PhotoGallery photos={property.photos} />
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content */}
         <div className="lg:col-span-2">
@@ -87,25 +139,153 @@ export default function PropertyDetailPage() {
             ))}
           </div>
 
-          {/* General */}
+          {/* General — grouped into sections */}
           {activeTab === 'General' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[
-                { icon: Building2, label: 'Tipo', value: typeLabel },
-                { icon: MapPin, label: 'Dirección', value: `${property.address}, ${property.city}` },
-                { icon: MapPin, label: 'Región', value: property.region },
-                { icon: User, label: 'Responsable', value: property.responsible },
-                { icon: Building2, label: 'Área', value: `${property.area.toLocaleString('es-CL')} m²` },
-                { icon: Building2, label: 'Estado', value: property.status === 'activo' ? 'Activo' : property.status === 'en_mantenimiento' ? 'En Mantención' : 'Inactivo' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 border border-border rounded bg-card">
-                  <item.icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{item.label}</p>
-                    <p className="text-sm mt-0.5">{item.value}</p>
+            <div className="space-y-6">
+              {/* Información General */}
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">Información General</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { icon: Building2, label: 'Tipo', value: typeLabel },
+                    { icon: MapPin, label: 'Dirección', value: `${property.address}, ${property.city}` },
+                    { icon: MapPin, label: 'Región', value: property.region },
+                    { icon: User, label: 'Responsable', value: property.responsible },
+                    { icon: Building2, label: 'Estado', value: property.status === 'activo' ? 'Activo' : property.status === 'en_mantenimiento' ? 'En Mantención' : 'Inactivo' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                      <item.icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{item.label}</p>
+                        <p className="text-sm mt-0.5">{item.value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Información Física */}
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">Información Física</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                    <Ruler className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">m² Construidos</p>
+                      <p className="text-sm mt-0.5 font-mono-numeric">{property.m2Construidos.toLocaleString('es-CL')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                    <Ruler className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">m² Terreno</p>
+                      <p className="text-sm mt-0.5 font-mono-numeric">{property.m2Terreno.toLocaleString('es-CL')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                    <Tag className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Tipo de Activo</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {property.assetTags.map(tag => (
+                          <span key={tag} className="text-[10px] font-medium bg-muted px-2 py-0.5 rounded-full">{assetTagLabels[tag]}</span>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Información Legal */}
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">Información Legal</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                    <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Rol</p>
+                      <p className="text-sm mt-0.5 font-mono-numeric">{property.rol}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                    <User className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">RUT Asociado</p>
+                      <p className="text-sm mt-0.5 font-mono-numeric">{property.rut}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                    <DollarSign className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Avalúo Fiscal</p>
+                      <p className="text-sm mt-0.5 font-mono-numeric">{formatCLP(property.avaluoFiscal)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                    <DollarSign className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Valor de Contribución</p>
+                      <p className="text-sm mt-0.5 font-mono-numeric">{formatCLP(property.valorContribucion)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card sm:col-span-2">
+                    <Shield className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Seguros</p>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {property.seguros.map(s => (
+                          <span key={s} className="text-[10px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Documentos del Inmueble */}
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">Documentos del Inmueble</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                    <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Escritura</p>
+                      {property.escritura ? (
+                        <p className="text-sm mt-0.5 text-primary hover:underline cursor-pointer">{property.escritura}</p>
+                      ) : (
+                        <p className="text-sm mt-0.5 text-muted-foreground italic">Sin escritura adjunta</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                    <FolderOpen className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Planos</p>
+                      {property.planos.length > 0 ? (
+                        <div className="space-y-0.5 mt-0.5">
+                          {property.planos.map(p => (
+                            <p key={p} className="text-sm text-primary hover:underline cursor-pointer">{p}</p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm mt-0.5 text-muted-foreground italic">Sin planos adjuntos</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Multimedia */}
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">Multimedia</p>
+                <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                  <ImageIcon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Fotos del Inmueble</p>
+                    <p className="text-sm mt-0.5">{property.photos.length} foto(s) registrada(s)</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -146,7 +326,6 @@ export default function PropertyDetailPage() {
           {/* Gastos Generales */}
           {activeTab === 'Gastos Generales' && (
             <div>
-              {/* Filter chips */}
               <div className="flex flex-wrap gap-2 mb-4">
                 {([['all', 'Todos', propExpenses.length], ['vencido', '🔴 Vencido', expOverdue], ['por_vencer', '🟡 Por vencer', expWarning], ['al_dia', '🟢 Al día', propExpenses.filter(e => e.status === 'al_dia').length]] as const).map(([val, lbl, cnt]) => (
                   <button key={val} onClick={() => setExpenseStatusFilter(val)}
@@ -311,6 +490,10 @@ export default function PropertyDetailPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Documentos</span>
                 <span className="font-mono-numeric">{propContracts.flatMap(c => c.documents).length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Fotos</span>
+                <span className="font-mono-numeric">{property.photos.length}</span>
               </div>
             </div>
           </div>

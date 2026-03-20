@@ -27,7 +27,6 @@ export default function ContractsPage() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Summary counts for current tab
   const tabContracts = contracts.filter(c => c.type === tab);
   const tabExpired = tabContracts.filter(c => c.status === 'vencido').length;
   const tabWarning = tabContracts.filter(c => c.status === 'por_vencer').length;
@@ -74,7 +73,7 @@ export default function ContractsPage() {
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input type="text" placeholder="Buscar contrato, propiedad o contraparte..." value={search}
+          <input type="text" placeholder="Buscar contrato, inmueble o contraparte..." value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
             className="w-full h-9 pl-9 pr-3 text-sm border border-input rounded bg-card focus:outline-none focus:ring-1 focus:ring-ring" />
         </div>
@@ -87,7 +86,7 @@ export default function ContractsPage() {
             <thead>
               <tr>
                 <th className="table-header-cell text-left">Contrato</th>
-                <th className="table-header-cell text-left">Propiedad</th>
+                <th className="table-header-cell text-left">Inmueble</th>
                 <th className="table-header-cell text-left">Contraparte</th>
                 <th className="table-header-cell text-left">Inicio</th>
                 <th className="table-header-cell text-left">Término</th>
@@ -104,7 +103,7 @@ export default function ContractsPage() {
                   <tr key={c.id} className="table-row-hover border-t border-border">
                     <td className="px-4 py-3 font-mono-numeric text-xs">{c.id}</td>
                     <td className="px-4 py-3">
-                      <Link to={`/propiedades/${c.propertyId}`} className="hover:text-primary hover:underline">{c.propertyName}</Link>
+                      <Link to={`/inmuebles/${c.propertyId}`} className="hover:text-primary hover:underline">{c.propertyName}</Link>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{c.counterpart}</td>
                     <td className="px-4 py-3 font-mono-numeric text-xs">{formatDate(c.startDate)}</td>

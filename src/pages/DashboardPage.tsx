@@ -83,7 +83,7 @@ function PropertyMap({ props }: { props: Property[] }) {
   return (
     <div className="kpi-card">
       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">
-        Ubicación de Propiedades — {props.length} en total
+        Ubicación de Inmuebles — {props.length} en total
       </p>
       <div className="h-[320px] rounded overflow-hidden border border-border">
         <MapContainer center={[-33.45, -70.65]} zoom={4} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
@@ -239,14 +239,13 @@ export default function DashboardPage() {
   const contractsExpiring = contracts.filter(c => c.status === 'por_vencer').length;
   const contractsExpired = contracts.filter(c => c.status === 'vencido').length;
   const pendingMaintenance = maintenanceTickets.filter(t => t.status !== 'resuelto').length;
-  const totalContractValue = contracts.reduce((s, c) => s + c.monthlyAmount, 0);
   const expensesOverdue = expenses.filter(e => e.status === 'vencido').length;
   const expensesDueSoon = expenses.filter(e => e.status === 'por_vencer').length;
 
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-semibold">Estado de Activos: {totalProperties} Propiedades bajo gestión</h1>
+        <h1 className="text-xl font-semibold">Estado de Activos: {totalProperties} Inmuebles bajo gestión</h1>
         <p className="text-sm text-muted-foreground mt-1">Resumen operativo — {new Date().toLocaleDateString('es-CL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
       </div>
 
@@ -254,7 +253,7 @@ export default function DashboardPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-        <KPICard label="Total Propiedades" value={totalProperties} icon={Building2} subtitle={`${properties.filter(p => p.status === 'activo').length} activas`} />
+        <KPICard label="Total Inmuebles" value={totalProperties} icon={Building2} subtitle={`${properties.filter(p => p.status === 'activo').length} activos`} />
         <KPICard label="Contratos por Vencer" value={contractsExpiring} icon={FileText} subtitle={`en los próx. 90 días`} accent="warning" />
         <KPICard label="Contratos Vencidos" value={contractsExpired} icon={FileText} accent="destructive" />
         <KPICard label="Gastos Vencidos" value={expensesOverdue} icon={DollarSign} accent="destructive" />

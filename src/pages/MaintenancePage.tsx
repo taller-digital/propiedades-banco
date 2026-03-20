@@ -68,7 +68,7 @@ export default function MaintenancePage() {
               <tr>
                 <th className="table-header-cell text-left">ID</th>
                 <th className="table-header-cell text-left">Título</th>
-                <th className="table-header-cell text-left">Propiedad</th>
+                <th className="table-header-cell text-left">Inmueble</th>
                 <th className="table-header-cell text-center">Prioridad</th>
                 <th className="table-header-cell text-center">Estado</th>
                 <th className="table-header-cell text-left">Responsable</th>

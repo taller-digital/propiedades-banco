@@ -46,8 +46,8 @@ export default function PropertiesPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold">Inventario de Propiedades</h1>
-          <p className="text-sm text-muted-foreground mt-1">{filtered.length} propiedades encontradas</p>
+          <h1 className="text-xl font-semibold">Inventario de Inmuebles</h1>
+          <p className="text-sm text-muted-foreground mt-1">{filtered.length} inmuebles encontrados</p>
         </div>
       </div>
 
@@ -102,23 +102,23 @@ export default function PropertiesPage() {
                 <th className="table-header-cell text-left">Estado</th>
                 <th className="table-header-cell text-left">Ciudad</th>
                 <th className="table-header-cell text-left">Responsable</th>
-                <th className="table-header-cell text-right">Área (m²)</th>
+                <th className="table-header-cell text-right">m² Constr.</th>
               </tr>
             </thead>
             <tbody>
               {paginated.map(p => (
                 <tr key={p.id} className="table-row-hover border-t border-border">
                   <td className="px-4 py-3 font-mono-numeric text-xs text-muted-foreground">
-                    <Link to={`/propiedades/${p.id}`} className="hover:text-primary hover:underline">{p.id}</Link>
+                    <Link to={`/inmuebles/${p.id}`} className="hover:text-primary hover:underline">{p.id}</Link>
                   </td>
                   <td className="px-4 py-3 font-medium">
-                    <Link to={`/propiedades/${p.id}`} className="hover:text-primary hover:underline">{p.name}</Link>
+                    <Link to={`/inmuebles/${p.id}`} className="hover:text-primary hover:underline">{p.name}</Link>
                   </td>
                   <td className="px-4 py-3"><StatusBadge type={p.type} /></td>
                   <td className="px-4 py-3"><PropertyStatusBadge status={p.status} /></td>
                   <td className="px-4 py-3 text-muted-foreground">{p.city}</td>
                   <td className="px-4 py-3 text-muted-foreground">{p.responsible}</td>
-                  <td className="px-4 py-3 font-mono-numeric text-right">{p.area.toLocaleString('es-CL')}</td>
+                  <td className="px-4 py-3 font-mono-numeric text-right">{p.m2Construidos.toLocaleString('es-CL')}</td>
                 </tr>
               ))}
               {paginated.length === 0 && (
