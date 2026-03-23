@@ -1,20 +1,20 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import { contracts, formatCLP, formatDate, getContractSemaphore, getDaysRemaining, type Contract } from '@/data/mockData';
+import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { contracts, formatCLP, formatDate, getContractSemaphore, getDaysRemaining, propertyTypeLabels, type PropertyType } from '@/data/mockData';
 import SemaphoreBadge from '@/components/SemaphoreBadge';
 
 const PAGE_SIZE = 12;
 
 export default function ContractsPage() {
-  const [tab, setTab] = useState<'arrendatario' | 'arrendador'>('arrendatario');
+  const [typeFilter, setTypeFilter] = useState<PropertyType | 'all'>('all');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'vigente' | 'por_vencer' | 'vencido'>('all');
   const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {
     return contracts.filter(c => {
-      if (c.type !== tab) return false;
+      if (typeFilter !== 'all' && c.type !== typeFilter) return false;
       if (statusFilter !== 'all' && c.status !== statusFilter) return false;
       if (search) {
         const q = search.toLowerCase();
@@ -22,60 +22,57 @@ export default function ContractsPage() {
       }
       return true;
     });
-  }, [tab, search, statusFilter]);
+  }, [typeFilter, search, statusFilter]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const tabContracts = contracts.filter(c => c.type === tab);
-  const tabExpired = tabContracts.filter(c => c.status === 'vencido').length;
-  const tabWarning = tabContracts.filter(c => c.status === 'por_vencer').length;
-  const tabActive = tabContracts.filter(c => c.status === 'vigente').length;
+  const allExpired = contracts.filter(c => c.status === 'vencido').length;
+  const allWarning = contracts.filter(c => c.status === 'por_vencer').length;
+  const allActive = contracts.filter(c => c.status === 'vigente').length;
 
   return (
     <div>
       <h1 className="text-xl font-semibold mb-1">Gestión de Contratos</h1>
       <p className="text-sm text-muted-foreground mb-6">{contracts.length} contratos registrados</p>
 
-      {/* Tabs */}
-      <div className="flex gap-0 border-b border-border mb-6">
-        <button onClick={() => { setTab('arrendatario'); setPage(1); }}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === 'arrendatario' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-          Banco como Arrendatario
-        </button>
-        <button onClick={() => { setTab('arrendador'); setPage(1); }}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === 'arrendador' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-          Banco como Arrendador
-        </button>
-      </div>
-
       {/* Summary badges */}
       <div className="flex flex-wrap gap-3 mb-4">
         <button onClick={() => { setStatusFilter('all'); setPage(1); }}
           className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${statusFilter === 'all' ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:bg-muted'}`}>
-          Todos ({tabContracts.length})
+          Todos ({contracts.length})
         </button>
         <button onClick={() => { setStatusFilter('vigente'); setPage(1); }}
           className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${statusFilter === 'vigente' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}`}>
-          🟢 Vigente ({tabActive})
+          🟢 Vigente ({allActive})
         </button>
         <button onClick={() => { setStatusFilter('por_vencer'); setPage(1); }}
           className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${statusFilter === 'por_vencer' ? 'bg-amber-600 text-white border-amber-600' : 'border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100'}`}>
-          🟡 Por vencer ({tabWarning})
+          🟡 Por vencer ({allWarning})
         </button>
         <button onClick={() => { setStatusFilter('vencido'); setPage(1); }}
           className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${statusFilter === 'vencido' ? 'bg-red-600 text-white border-red-600' : 'border-red-200 text-red-700 bg-red-50 hover:bg-red-100'}`}>
-          🔴 Vencido ({tabExpired})
+          🔴 Vencido ({allExpired})
         </button>
       </div>
 
-      {/* Search */}
+      {/* Search & filter */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input type="text" placeholder="Buscar contrato, inmueble o contraparte..." value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
             className="w-full h-9 pl-9 pr-3 text-sm border border-input rounded bg-card focus:outline-none focus:ring-1 focus:ring-ring" />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+          <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value as any); setPage(1); }}
+            className="h-9 text-sm border border-input rounded bg-card px-2 focus:outline-none focus:ring-1 focus:ring-ring">
+            <option value="all">Todos los tipos</option>
+            <option value="work_cafe">Work Café</option>
+            <option value="oficina_central">Oficina Central</option>
+            <option value="sucursal">Sucursal</option>
+          </select>
         </div>
       </div>
 
@@ -87,6 +84,7 @@ export default function ContractsPage() {
               <tr>
                 <th className="table-header-cell text-left">Contrato</th>
                 <th className="table-header-cell text-left">Inmueble</th>
+                <th className="table-header-cell text-left">Tipo</th>
                 <th className="table-header-cell text-left">Contraparte</th>
                 <th className="table-header-cell text-left">Inicio</th>
                 <th className="table-header-cell text-left">Término</th>
@@ -105,6 +103,7 @@ export default function ContractsPage() {
                     <td className="px-4 py-3">
                       <Link to={`/inmuebles/${c.propertyId}`} className="hover:text-primary hover:underline">{c.propertyName}</Link>
                     </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{propertyTypeLabels[c.type]}</td>
                     <td className="px-4 py-3 text-muted-foreground">{c.counterpart}</td>
                     <td className="px-4 py-3 font-mono-numeric text-xs">{formatDate(c.startDate)}</td>
                     <td className="px-4 py-3 font-mono-numeric text-xs">{formatDate(c.endDate)}</td>
@@ -121,7 +120,7 @@ export default function ContractsPage() {
                 );
               })}
               {paginated.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground text-sm">No se encontraron contratos.</td></tr>
+                <tr><td colSpan={9} className="px-4 py-12 text-center text-muted-foreground text-sm">No se encontraron contratos.</td></tr>
               )}
             </tbody>
           </table>
