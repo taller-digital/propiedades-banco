@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, FileText, Wrench, AlertTriangle, TrendingUp, ArrowRight, MapPin, Zap, DollarSign } from 'lucide-react';
-import { properties, contracts, maintenanceTickets, alerts, expenses, formatCLP, type Property, getContractSemaphore, getDaysRemaining } from '@/data/mockData';
+import { Building2, FileText, Wrench, AlertTriangle, TrendingUp, ArrowRight, MapPin, Zap, DollarSign, CheckCircle2, BarChart2 } from 'lucide-react';
+import { properties, contracts, maintenanceTickets, alerts, expenses, formatCLP, type Property, getContractSemaphore, getDaysRemaining, propertyTypeLabels, futureTaskTagLabels, type FutureTaskTag } from '@/data/mockData';
 import { useRole } from '@/hooks/useRole';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -64,10 +64,10 @@ function CombinedAlertBanner() {
   );
 }
 
-const typeColors: Record<string, string> = {
-  interno: '#64748b',
-  arrendatario: '#1e40af',
-  arrendador: '#6366f1',
+const typeMapColors: Record<string, string> = {
+  work_cafe: '#d97706',
+  oficina_central: '#1e40af',
+  sucursal: '#059669',
 };
 
 function createIcon(color: string) {
@@ -89,12 +89,12 @@ function PropertyMap({ props }: { props: Property[] }) {
         <MapContainer center={[-33.45, -70.65]} zoom={4} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
           <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           {props.map(p => (
-            <Marker key={p.id} position={[p.lat, p.lng]} icon={createIcon(typeColors[p.type] || '#64748b')}>
+            <Marker key={p.id} position={[p.lat, p.lng]} icon={createIcon(typeMapColors[p.type] || '#64748b')}>
               <Popup>
                 <div className="text-xs">
                   <p className="font-semibold">{p.name}</p>
                   <p className="text-muted-foreground">{p.address}, {p.city}</p>
-                  <p className="mt-1 capitalize">{p.type} · {p.status}</p>
+                  <p className="mt-1">{propertyTypeLabels[p.type]} · {p.status}</p>
                 </div>
               </Popup>
             </Marker>
@@ -102,9 +102,10 @@ function PropertyMap({ props }: { props: Property[] }) {
         </MapContainer>
       </div>
       <div className="flex items-center gap-4 mt-3">
-        {[{ label: 'Uso Interno', color: '#64748b' }, { label: 'Arrendatario', color: '#1e40af' }, { label: 'Arrendador', color: '#6366f1' }].map(l => (
-          <div key={l.label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <div className="h-2.5 w-2.5 rounded-full" style={{ background: l.color }} /> {l.label}
+        {Object.entries(typeMapColors).map(([type, color]) => (
+          <div key={type} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <div className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
+            {propertyTypeLabels[type as keyof typeof propertyTypeLabels]}
           </div>
         ))}
       </div>
@@ -141,19 +142,16 @@ function ContractExpiryChart() {
 }
 
 function TypeDistribution() {
-  const interno = properties.filter(p => p.type === 'interno').length;
-  const arrendatario = properties.filter(p => p.type === 'arrendatario').length;
-  const arrendador = properties.filter(p => p.type === 'arrendador').length;
   const total = properties.length;
-  const items = [
-    { label: 'Uso Interno', count: interno, pct: ((interno / total) * 100).toFixed(1), color: 'bg-slate-400' },
-    { label: 'Arrendatario', count: arrendatario, pct: ((arrendatario / total) * 100).toFixed(1), color: 'bg-primary' },
-    { label: 'Arrendador', count: arrendador, pct: ((arrendador / total) * 100).toFixed(1), color: 'bg-indigo-500' },
-  ];
+  const items = (Object.keys(propertyTypeLabels) as Array<keyof typeof propertyTypeLabels>).map(type => {
+    const count = properties.filter(p => p.type === type).length;
+    const colorMap: Record<string, string> = { work_cafe: 'bg-amber-500', oficina_central: 'bg-primary', sucursal: 'bg-emerald-500' };
+    return { label: propertyTypeLabels[type], count, pct: ((count / total) * 100).toFixed(1), color: colorMap[type] || 'bg-slate-400' };
+  });
 
   return (
     <div className="kpi-card">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-4">Distribución por Tipo</p>
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-4">Distribución por Tipo de Inmueble</p>
       <div className="h-3 flex rounded overflow-hidden mb-4">
         {items.map(i => (<div key={i.label} className={`${i.color} transition-all`} style={{ width: `${i.pct}%` }} />))}
       </div>
@@ -168,6 +166,124 @@ function TypeDistribution() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function StatusDistribution() {
+  const total = properties.length;
+  const items = [
+    { label: 'Activo', key: 'activo', color: 'bg-emerald-500', textColor: 'text-emerald-700' },
+    { label: 'En Mantención', key: 'en_mantenimiento', color: 'bg-amber-500', textColor: 'text-amber-700' },
+    { label: 'Inactivo', key: 'inactivo', color: 'bg-slate-400', textColor: 'text-slate-600' },
+  ].map(i => ({ ...i, count: properties.filter(p => p.status === i.key).length, pct: ((properties.filter(p => p.status === i.key).length / total) * 100).toFixed(1) }));
+
+  return (
+    <div className="kpi-card">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-4">Distribución por Estado</p>
+      <div className="h-3 flex rounded overflow-hidden mb-4">
+        {items.map(i => (<div key={i.key} className={`${i.color}`} style={{ width: `${i.pct}%` }} />))}
+      </div>
+      <div className="space-y-2">
+        {items.map(i => (
+          <div key={i.key} className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <div className={`h-2.5 w-2.5 rounded-sm ${i.color}`} />
+              <span className="text-muted-foreground text-xs">{i.label}</span>
+            </div>
+            <span className="font-mono-numeric text-xs">{i.count} <span className="text-muted-foreground">({i.pct}%)</span></span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ComunaDistribution() {
+  const byComuna = useMemo(() => {
+    const map: Record<string, number> = {};
+    properties.forEach(p => { map[p.comuna] = (map[p.comuna] || 0) + 1; });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  }, []);
+  const max = Math.max(...byComuna.map(([, v]) => v), 1);
+
+  return (
+    <div className="kpi-card">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-4">Top Comunas por Inmuebles</p>
+      <div className="space-y-2">
+        {byComuna.map(([comuna, count]) => (
+          <div key={comuna} className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground w-24 shrink-0 truncate">{comuna}</span>
+            <div className="flex-1 h-2 bg-muted rounded overflow-hidden">
+              <div className="h-full bg-primary/70 rounded" style={{ width: `${(count / max) * 100}%` }} />
+            </div>
+            <span className="text-xs font-mono-numeric w-6 text-right">{count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CriticalProperties() {
+  const critical = useMemo(() => properties.filter(p => p.riskLevel === 'critical').slice(0, 6), []);
+
+  return (
+    <div className="kpi-card">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Estado Crítico</p>
+        <Link to="/inmuebles" className="text-[10px] text-primary font-medium hover:underline flex items-center gap-1">
+          Ver todo <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+      {critical.length === 0 ? (
+        <div className="flex items-center gap-2 text-xs text-emerald-600">
+          <CheckCircle2 className="h-4 w-4" /> Sin inmuebles en estado crítico
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {critical.map(p => (
+            <Link key={p.id} to={`/inmuebles/${p.id}`} className="flex items-center gap-3 text-xs hover:bg-muted/50 -mx-1 px-1 py-1 rounded transition-colors">
+              <div className="h-2 w-2 rounded-full bg-red-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{p.name}</p>
+                <p className="text-[10px] text-muted-foreground">{p.comuna} · {propertyTypeLabels[p.type]}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlanificacionSummary() {
+  const byTag = useMemo(() => {
+    const map: Record<string, number> = {};
+    properties.forEach(p => p.futureTasks.forEach(t => { map[t.tag] = (map[t.tag] || 0) + 1; }));
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+  }, []);
+
+  const totalWithTasks = useMemo(() => properties.filter(p => p.futureTasks.length > 0).length, []);
+
+  return (
+    <div className="kpi-card">
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Planificación</p>
+        <span className="text-[10px] text-muted-foreground">{totalWithTasks} inmuebles con tareas</span>
+      </div>
+      {byTag.length === 0 ? (
+        <p className="text-xs text-muted-foreground">Sin tareas de planificación registradas.</p>
+      ) : (
+        <div className="space-y-2">
+          {byTag.map(([tag, count]) => (
+            <div key={tag} className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">{futureTaskTagLabels[tag as FutureTaskTag]}</span>
+              <span className="font-mono-numeric font-semibold">{count}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -241,6 +357,7 @@ export default function DashboardPage() {
   const pendingMaintenance = maintenanceTickets.filter(t => t.status !== 'resuelto').length;
   const expensesOverdue = expenses.filter(e => e.status === 'vencido').length;
   const expensesDueSoon = expenses.filter(e => e.status === 'por_vencer').length;
+  const criticalCount = properties.filter(p => p.riskLevel === 'critical').length;
 
   return (
     <div>
@@ -252,25 +369,38 @@ export default function DashboardPage() {
       <CombinedAlertBanner />
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
         <KPICard label="Total Inmuebles" value={totalProperties} icon={Building2} subtitle={`${properties.filter(p => p.status === 'activo').length} activos`} />
-        <KPICard label="Contratos por Vencer" value={contractsExpiring} icon={FileText} subtitle={`en los próx. 90 días`} accent="warning" />
+        <KPICard label="Estado Crítico" value={criticalCount} icon={AlertTriangle} accent="destructive" subtitle="requieren atención" />
+        <KPICard label="Contratos por Vencer" value={contractsExpiring} icon={FileText} subtitle="próx. 90 días" accent="warning" />
         <KPICard label="Contratos Vencidos" value={contractsExpired} icon={FileText} accent="destructive" />
         <KPICard label="Gastos Vencidos" value={expensesOverdue} icon={DollarSign} accent="destructive" />
-        <KPICard label="Gastos por Vencer" value={expensesDueSoon} icon={Zap} accent="warning" />
         <KPICard label="Mantenciones Pend." value={pendingMaintenance} icon={Wrench} subtitle={`${maintenanceTickets.filter(t => t.priority === 'critica').length} críticas`} />
       </div>
 
-      {/* Charts row */}
+      {/* Distribuciones */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         <TypeDistribution />
-        <ContractExpiryChart />
-        <UpcomingContracts />
+        <StatusDistribution />
+        <ComunaDistribution />
       </div>
 
+      {/* Análisis */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <CriticalProperties />
+        <PlanificacionSummary />
+        <ContractExpiryChart />
+      </div>
+
+      {/* Actividad y mapa */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <RecentActivity />
         {(role === 'admin' || role === 'jefatura') && <PropertyMap props={properties} />}
+      </div>
+
+      {/* Contratos críticos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <UpcomingContracts />
       </div>
     </div>
   );

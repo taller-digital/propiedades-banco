@@ -11,6 +11,7 @@ import {
   assetTagLabels,
   futureTaskTagLabels,
   semaphoreLabels,
+  propertyTypeLabels,
 } from '@/data/mockData';
 
 export function generatePropertyPdf(
@@ -66,7 +67,7 @@ export function generatePropertyPdf(
 
   // ── Información General ──
   sectionTitle('Información General');
-  const typeLabel = property.type === 'interno' ? 'Uso Interno' : property.type === 'arrendatario' ? 'Arrendatario' : 'Arrendador';
+  const typeLabel = propertyTypeLabels[property.type];
   const statusLabel = property.status === 'activo' ? 'Activo' : property.status === 'en_mantenimiento' ? 'En Mantención' : 'Inactivo';
   addField('Tipo', typeLabel);
   addField('Estado', statusLabel);
@@ -105,9 +106,9 @@ export function generatePropertyPdf(
   addField('Planos', property.planos.length > 0 ? property.planos.join(', ') : 'Sin planos adjuntos');
   y += 3;
 
-  // ── Tareas Futuras ──
+  // ── Planificación ──
   if (property.futureTasks.length > 0) {
-    sectionTitle('Tareas Futuras');
+    sectionTitle('Planificación');
     property.futureTasks.forEach(t => {
       addField(futureTaskTagLabels[t.tag], t.description);
     });

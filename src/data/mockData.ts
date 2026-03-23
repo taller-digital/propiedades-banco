@@ -1,4 +1,4 @@
-export type PropertyType = 'interno' | 'arrendatario' | 'arrendador';
+export type PropertyType = 'work_cafe' | 'oficina_central' | 'sucursal';
 export type PropertyStatus = 'activo' | 'en_mantenimiento' | 'inactivo';
 export type ContractStatus = 'vigente' | 'por_vencer' | 'vencido';
 export type MaintenanceStatus = 'pendiente' | 'en_proceso' | 'resuelto';
@@ -6,7 +6,7 @@ export type UserRole = 'admin' | 'operaciones' | 'jefatura';
 export type ExpenseType = 'luz' | 'agua' | 'gastos_comunes' | 'internet' | 'otros';
 export type SemaphoreStatus = 'al_dia' | 'por_vencer' | 'vencido';
 export type AssetTag = 'comercial' | 'residencial' | 'industrial' | 'oficina' | 'mixto' | 'terreno' | 'bodega';
-export type FutureTaskTag = 'remodelacion' | 'cierre' | 'nuevo' | 'ampliacion' | 'venta' | 'arriendo' | 'regularizacion';
+export type FutureTaskTag = 'remodelacion' | 'cierre' | 'nuevo' | 'ampliacion' | 'venta' | 'regularizacion';
 
 export interface FutureTask {
   id: string;
@@ -20,8 +20,19 @@ export const futureTaskTagLabels: Record<FutureTaskTag, string> = {
   nuevo: 'Nuevo',
   ampliacion: 'Ampliación',
   venta: 'Venta',
-  arriendo: 'Arriendo',
   regularizacion: 'Regularización',
+};
+
+export const propertyTypeLabels: Record<PropertyType, string> = {
+  work_cafe: 'Work Café',
+  oficina_central: 'Oficina Central',
+  sucursal: 'Sucursal',
+};
+
+export const propertyTypeColors: Record<PropertyType, string> = {
+  work_cafe: 'bg-amber-100 text-amber-800',
+  oficina_central: 'bg-blue-100 text-blue-800',
+  sucursal: 'bg-emerald-100 text-emerald-800',
 };
 
 export const futureTaskTagColors: Record<FutureTaskTag, string> = {
@@ -30,7 +41,6 @@ export const futureTaskTagColors: Record<FutureTaskTag, string> = {
   nuevo: 'bg-emerald-100 text-emerald-800',
   ampliacion: 'bg-blue-100 text-blue-800',
   venta: 'bg-purple-100 text-purple-800',
-  arriendo: 'bg-indigo-100 text-indigo-800',
   regularizacion: 'bg-orange-100 text-orange-800',
 };
 
@@ -80,7 +90,7 @@ export interface Contract {
   id: string;
   propertyId: string;
   propertyName: string;
-  type: 'arrendatario' | 'arrendador';
+  type: PropertyType;
   startDate: string;
   endDate: string;
   monthlyAmount: number;
@@ -212,19 +222,27 @@ const counterparts = ['Inmobiliaria Andes SpA', 'Corp. Bienes Raíces Pacífico'
 const sociedades = ['Banco Nacional S.A.', 'Filial Inmobiliaria SpA', 'Holding Financiero Ltda.', 'Sociedad de Inversiones Central S.A.'];
 
 const samplePhotos = [
-  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&h=600&fit=crop', // glass skyscraper
-  'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop', // corporate office
-  'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop', // office building
-  'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=800&h=600&fit=crop', // bank facade
-  'https://images.unsplash.com/photo-1582407947304-fd86f28f1c20?w=800&h=600&fit=crop', // corporate tower
-  'https://images.unsplash.com/photo-1464938050520-ef2270bb8ce8?w=800&h=600&fit=crop', // financial district
-  'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=800&h=600&fit=crop', // city skyscrapers
-  'https://images.unsplash.com/photo-1554469384-e58fac16e23a?w=800&h=600&fit=crop', // commercial building
+  // Sucursales bancarias / fachadas comerciales
+  'https://images.unsplash.com/photo-1541354329998-f4d9a9f9297f?w=800&h=600&fit=crop', // banco fachada roja
+  'https://images.unsplash.com/photo-1501167786227-4cba60f6d58f?w=800&h=600&fit=crop', // sucursal bancaria urbana
+  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&h=600&fit=crop', // torre corporativa vidrio
+  'https://images.unsplash.com/photo-1464938050520-ef2270bb8ce8?w=800&h=600&fit=crop', // distrito financiero
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&h=600&fit=crop', // edificio corporativo moderno
+  'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=800&h=600&fit=crop', // oficina central corporativa
+  'https://images.unsplash.com/photo-1582407947304-fd86f28f1c20?w=800&h=600&fit=crop', // torre financiera
+  'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop', // interior corporativo
+  'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=800&h=600&fit=crop', // fachada banco clasico
+  'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop', // edificio oficinas
+  'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=800&h=600&fit=crop', // skyline ciudad
+  'https://images.unsplash.com/photo-1554469384-e58fac16e23a?w=800&h=600&fit=crop', // local comercial
+  'https://images.unsplash.com/photo-1453728013993-6d66e9c9123a?w=800&h=600&fit=crop', // work cafe interior
+  'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=800&h=600&fit=crop', // sala reuniones corporativa
+  'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&h=600&fit=crop', // cowork moderno
 ];
 
 const segurosOptions = ['Incendio', 'Terremoto', 'Robo', 'Responsabilidad Civil', 'Todo Riesgo', 'Daños a Terceros'];
 const allTags: AssetTag[] = ['comercial', 'residencial', 'industrial', 'oficina', 'mixto', 'terreno', 'bodega'];
-const allFutureTags: FutureTaskTag[] = ['remodelacion', 'cierre', 'nuevo', 'ampliacion', 'venta', 'arriendo', 'regularizacion'];
+const allFutureTags: FutureTaskTag[] = ['remodelacion', 'cierre', 'nuevo', 'ampliacion', 'venta', 'regularizacion'];
 
 const futureTaskDescriptions: Record<FutureTaskTag, string[]> = {
   remodelacion: ['Remodelación de oficinas piso 2 en noviembre', 'Actualización de fachada exterior', 'Renovación de baños comunes'],
@@ -232,7 +250,6 @@ const futureTaskDescriptions: Record<FutureTaskTag, string[]> = {
   nuevo: ['Nueva sucursal en operación Q1 2027', 'Nuevo punto de atención al cliente'],
   ampliacion: ['Ampliación de bodega lateral', 'Ampliación segundo piso oficinas'],
   venta: ['En proceso de tasación para venta', 'Venta programada Q2 2027'],
-  arriendo: ['Buscar nuevo arrendatario', 'Renovación de contrato de arriendo'],
   regularizacion: ['Regularización de permisos municipales', 'Regularización de escritura'],
 };
 
@@ -272,7 +289,7 @@ function generateFutureTasks(seed: number): FutureTask[] {
 }
 
 function generateProperties(count: number): Property[] {
-  const types: PropertyType[] = ['interno', 'arrendatario', 'arrendador'];
+  const types: PropertyType[] = ['work_cafe', 'oficina_central', 'sucursal'];
   const risks: Property['riskLevel'][] = ['ok', 'warning', 'critical'];
   const names = [
     'Sucursal', 'Oficina', 'Bodega', 'Local Comercial', 'Edificio', 'Casa Matriz', 'Agencia', 'Centro de Operaciones', 'Almacén', 'Torre'
@@ -345,7 +362,7 @@ export const contracts: Contract[] = properties
       id: p.contractId!,
       propertyId: p.id,
       propertyName: p.name,
-      type: p.type as 'arrendatario' | 'arrendador',
+      type: p.type,
       startDate: start.toISOString().split('T')[0],
       endDate: end.toISOString().split('T')[0],
       monthlyAmount: Math.floor(Math.random() * 8000000) + 500000,
