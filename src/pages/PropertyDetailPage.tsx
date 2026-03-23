@@ -1,71 +1,184 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Building2, FileText, Wrench, FolderOpen, MapPin, User, Calendar, DollarSign, Zap, ChevronLeft, ChevronRight, Shield, Ruler, Tag, Image as ImageIcon, Download, Loader2, Plus, Pencil, Trash2, X, CheckCircle2, Globe, Home, Briefcase, Clock, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Building2, FileText, Wrench, FolderOpen, MapPin, User, Calendar, DollarSign, Zap, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, Ruler, Tag, Image as ImageIcon, Download, Loader2, Plus, Pencil, Trash2, X, CheckCircle2, Globe, Home, Briefcase, Clock, MessageSquare, ZoomIn } from 'lucide-react';
 import { properties, contracts, maintenanceTickets, expenses, formatCLP, formatDate, getContractSemaphore, getExpenseSemaphore, getDaysRemaining, expenseTypeLabels, assetTagLabels, futureTaskTagLabels, futureTaskTagColors, type FutureTask, type FutureTaskTag } from '@/data/mockData';
 import { useRole } from '@/hooks/useRole';
 import SemaphoreBadge from '@/components/SemaphoreBadge';
 import { generatePropertyPdf } from '@/utils/generatePdf';
-import corporateImg from '@/assets/corporate-building.jpg';
 
 const tabs = ['General', 'Contratos', 'Gastos Generales', 'Mantenimiento', 'Documentos', 'Tareas Futuras'] as const;
 type Tab = typeof tabs[number];
 
+const CAROUSEL_VISIBLE = 4;
+
 function PhotoGallery({ photos }: { photos: string[] }) {
-  const [current, setCurrent] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [lightbox, setLightbox] = useState<number | null>(null);
+
+  const canUp = offset > 0;
+  const canDown = offset + CAROUSEL_VISIBLE < photos.length;
+
+  const closeLightbox = useCallback(() => setLightbox(null), []);
+
+  const prevLightbox = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLightbox(i => i !== null ? (i - 1 + photos.length) % photos.length : null);
+  }, [photos.length]);
+
+  const nextLightbox = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLightbox(i => i !== null ? (i + 1) % photos.length : null);
+  }, [photos.length]);
+
+  useEffect(() => {
+    if (lightbox === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') setLightbox(i => i !== null ? (i - 1 + photos.length) % photos.length : null);
+      if (e.key === 'ArrowRight') setLightbox(i => i !== null ? (i + 1) % photos.length : null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox, photos.length, closeLightbox]);
 
   if (photos.length === 0) return null;
 
-  const prev = () => setCurrent(i => (i - 1 + photos.length) % photos.length);
-  const next = () => setCurrent(i => (i + 1) % photos.length);
+  const visiblePhotos = photos.slice(offset, offset + CAROUSEL_VISIBLE);
 
   return (
-    <div className="mb-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        {/* Main slider */}
-        <div className="lg:col-span-2 relative rounded-lg overflow-hidden bg-muted border border-border aspect-[16/9]">
-          <img
-            src={photos[current]}
-            alt={`Foto ${current + 1}`}
-            className="w-full h-full object-cover"
-          />
-          {photos.length > 1 && (
-            <>
-              <button onClick={prev}
-                className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-foreground/60 text-background flex items-center justify-center hover:bg-foreground/80 transition-colors active:scale-95">
-                <ChevronLeft className="h-4 w-4" />
+    <>
+      {/* Vertical image carousel */}
+      <div className="mb-6 w-full sm:w-80 lg:w-72 xl:w-80">
+        <div className="flex flex-col gap-2">
+          {/* Scroll up */}
+          <button
+            onClick={() => setOffset(o => Math.max(0, o - 1))}
+            disabled={!canUp}
+            className={`w-full flex items-center justify-center py-1.5 rounded-lg border transition-colors
+              ${canUp
+                ? 'bg-muted border-border hover:bg-accent cursor-pointer'
+                : 'bg-muted/40 border-border/40 cursor-not-allowed opacity-40'}`}
+            aria-label="Imagen anterior"
+          >
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          {/* Image tiles */}
+          {visiblePhotos.map((photo, i) => {
+            const idx = offset + i;
+            return (
+              <button
+                key={idx}
+                onClick={() => setLightbox(idx)}
+                className="relative rounded-lg overflow-hidden border border-border bg-muted group focus:outline-none focus:ring-2 focus:ring-primary"
+                style={{ aspectRatio: '16/9' }}
+                aria-label={`Ver imagen ${idx + 1}`}
+              >
+                <img
+                  src={photo}
+                  alt={`Imagen ${idx + 1}`}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  loading="lazy"
+                />
+                {/* Hover overlay */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                  <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                </div>
+                {/* Counter badge */}
+                <span className="absolute bottom-1.5 right-1.5 bg-foreground/60 text-background text-[10px] px-1.5 py-0.5 rounded-full pointer-events-none">
+                  {idx + 1}/{photos.length}
+                </span>
               </button>
-              <button onClick={next}
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-foreground/60 text-background flex items-center justify-center hover:bg-foreground/80 transition-colors active:scale-95">
-                <ChevronRight className="h-4 w-4" />
-              </button>
-              <div className="absolute bottom-3 right-3 bg-foreground/60 text-background text-[10px] font-mono-numeric px-2 py-0.5 rounded-full">
-                {current + 1} / {photos.length}
-              </div>
-            </>
-          )}
+            );
+          })}
+
+          {/* Scroll down */}
+          <button
+            onClick={() => setOffset(o => Math.min(photos.length - CAROUSEL_VISIBLE, o + 1))}
+            disabled={!canDown}
+            className={`w-full flex items-center justify-center py-1.5 rounded-lg border transition-colors
+              ${canDown
+                ? 'bg-muted border-border hover:bg-accent cursor-pointer'
+                : 'bg-muted/40 border-border/40 cursor-not-allowed opacity-40'}`}
+            aria-label="Siguiente imagen"
+          >
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          </button>
         </div>
-        {/* Featured corporate image */}
-        <div className="hidden lg:block rounded-lg overflow-hidden border border-border aspect-[16/9]">
-          <img
-            src={corporateImg}
-            alt="Edificio corporativo"
-            className="w-full h-full object-cover"
-          />
-        </div>
+
+        {/* Dot indicators */}
+        {photos.length > CAROUSEL_VISIBLE && (
+          <div className="flex gap-1 mt-2 justify-center flex-wrap">
+            {photos.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setOffset(Math.min(Math.max(0, i), photos.length - CAROUSEL_VISIBLE))}
+                className={`h-1.5 rounded-full transition-all duration-200 ${
+                  i >= offset && i < offset + CAROUSEL_VISIBLE
+                    ? 'bg-primary w-4'
+                    : 'bg-muted-foreground/30 w-1.5 hover:bg-muted-foreground/60'
+                }`}
+                aria-label={`Ir a imagen ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
-      {/* Thumbnails */}
-      {photos.length > 1 && (
-        <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
-          {photos.map((photo, i) => (
-            <button key={i} onClick={() => setCurrent(i)}
-              className={`shrink-0 w-16 h-12 rounded overflow-hidden border-2 transition-all active:scale-95
-                ${i === current ? 'border-primary ring-1 ring-primary/30' : 'border-border opacity-60 hover:opacity-100'}`}>
-              <img src={photo} alt={`Miniatura ${i + 1}`} className="w-full h-full object-cover" />
+
+      {/* Lightbox */}
+      {lightbox !== null && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={closeLightbox}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Visor de imagen"
+        >
+          {/* Close */}
+          <button
+            className="absolute top-4 right-4 text-white/80 hover:text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors"
+            onClick={closeLightbox}
+            aria-label="Cerrar"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          {/* Prev */}
+          {photos.length > 1 && (
+            <button
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors"
+              onClick={prevLightbox}
+              aria-label="Imagen anterior"
+            >
+              <ChevronLeft className="h-6 w-6" />
             </button>
-          ))}
+          )}
+
+          <img
+            src={photos[lightbox]}
+            alt={`Imagen ${lightbox + 1}`}
+            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+
+          {/* Next */}
+          {photos.length > 1 && (
+            <button
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors"
+              onClick={nextLightbox}
+              aria-label="Siguiente imagen"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          )}
+
+          {/* Counter */}
+          <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-sm bg-black/40 px-3 py-1 rounded-full">
+            {lightbox + 1} / {photos.length}
+          </span>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
