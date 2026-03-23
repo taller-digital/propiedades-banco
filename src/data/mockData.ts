@@ -212,14 +212,14 @@ const counterparts = ['Inmobiliaria Andes SpA', 'Corp. Bienes Raíces Pacífico'
 const sociedades = ['Banco Nacional S.A.', 'Filial Inmobiliaria SpA', 'Holding Financiero Ltda.', 'Sociedad de Inversiones Central S.A.'];
 
 const samplePhotos = [
-  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1554469384-e58fac16e23a?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&h=600&fit=crop',
-  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&h=600&fit=crop',
+  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&h=600&fit=crop', // glass skyscraper
+  'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop', // corporate office
+  'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop', // office building
+  'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=800&h=600&fit=crop', // bank facade
+  'https://images.unsplash.com/photo-1582407947304-fd86f28f1c20?w=800&h=600&fit=crop', // corporate tower
+  'https://images.unsplash.com/photo-1464938050520-ef2270bb8ce8?w=800&h=600&fit=crop', // financial district
+  'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=800&h=600&fit=crop', // city skyscrapers
+  'https://images.unsplash.com/photo-1554469384-e58fac16e23a?w=800&h=600&fit=crop', // commercial building
 ];
 
 const segurosOptions = ['Incendio', 'Terremoto', 'Robo', 'Responsabilidad Civil', 'Todo Riesgo', 'Daños a Terceros'];
