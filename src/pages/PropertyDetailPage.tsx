@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Building2, FileText, Wrench, FolderOpen, MapPin, User, Calendar, DollarSign, Zap, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Shield, Ruler, Tag, Image as ImageIcon, Download, Loader2, Plus, Pencil, Trash2, X, CheckCircle2, Globe, Home, Briefcase, Clock, MessageSquare, ZoomIn } from 'lucide-react';
-import { properties, contracts, maintenanceTickets, expenses, formatCLP, formatDate, getContractSemaphore, getExpenseSemaphore, getDaysRemaining, expenseTypeLabels, assetTagLabels, futureTaskTagLabels, futureTaskTagColors, type FutureTask, type FutureTaskTag } from '@/data/mockData';
+import { properties, contracts, maintenanceTickets, expenses, formatCLP, formatDate, getContractSemaphore, getExpenseSemaphore, getDaysRemaining, expenseTypeLabels, assetTagLabels, futureTaskTagLabels, futureTaskTagColors, propertyTypeLabels, propertyTypeColors, type FutureTask, type FutureTaskTag } from '@/data/mockData';
 import { useRole } from '@/hooks/useRole';
 import SemaphoreBadge from '@/components/SemaphoreBadge';
 import { generatePropertyPdf } from '@/utils/generatePdf';
@@ -9,7 +9,7 @@ import { generatePropertyPdf } from '@/utils/generatePdf';
 const tabs = ['General', 'Contratos', 'Gastos Generales', 'Mantenimiento', 'Documentos', 'Tareas Futuras'] as const;
 type Tab = typeof tabs[number];
 
-const CAROUSEL_VISIBLE = 4;
+const CAROUSEL_VISIBLE = 5;
 
 function PhotoGallery({ photos }: { photos: string[] }) {
   const [offset, setOffset] = useState(0);
@@ -48,7 +48,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
   return (
     <>
       {/* Vertical image carousel */}
-      <div className="mb-6 w-full sm:w-80 lg:w-72 xl:w-80">
+      <div className="w-full">
         <div className="flex flex-col gap-2">
           {/* Scroll up */}
           <button
@@ -71,7 +71,7 @@ function PhotoGallery({ photos }: { photos: string[] }) {
                 key={idx}
                 onClick={() => setLightbox(idx)}
                 className="relative rounded-lg overflow-hidden border border-border bg-muted group focus:outline-none focus:ring-2 focus:ring-primary"
-                style={{ aspectRatio: '16/9' }}
+                style={{ aspectRatio: '4/3' }}
                 aria-label={`Ver imagen ${idx + 1}`}
               >
                 <img
@@ -213,8 +213,8 @@ export default function PropertyDetailPage() {
   const nextMaintenance = propTickets.find(t => t.status !== 'resuelto');
   const activeContract = propContracts.find(c => c.status === 'vigente' || c.status === 'por_vencer');
 
-  const typeLabel = property.type === 'interno' ? 'Uso Interno' : property.type === 'arrendatario' ? 'Arrendatario' : 'Arrendador';
-  const typeCls = property.type === 'interno' ? 'status-interno' : property.type === 'arrendatario' ? 'status-arrendatario' : 'status-arrendador';
+  const typeLabel = propertyTypeLabels[property.type] ?? property.type;
+  const typeCls = propertyTypeColors[property.type] ?? 'bg-muted text-muted-foreground';
 
   const expOverdue = propExpenses.filter(e => e.status === 'vencido').length;
   const expWarning = propExpenses.filter(e => e.status === 'por_vencer').length;
@@ -267,7 +267,7 @@ export default function PropertyDetailPage() {
           <div>
             <h1 className="text-xl font-semibold">{property.id} — {property.name}</h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className={typeCls}>{typeLabel}</span>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeCls}`}>{typeLabel}</span>
               <span className="text-xs text-muted-foreground">{property.address}, {property.city}</span>
               {/* Future task tags in header */}
               {localTasks.length > 0 && (
@@ -295,9 +295,6 @@ export default function PropertyDetailPage() {
           </button>
         </div>
       </div>
-
-      {/* Photo Gallery */}
-      <PhotoGallery photos={property.photos} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content */}
@@ -705,6 +702,14 @@ export default function PropertyDetailPage() {
 
         {/* Right sidebar */}
         <div className="space-y-4">
+          {/* Vertical image carousel */}
+          {property.photos.length > 0 && (
+            <div className="kpi-card p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">Fotos del Inmueble</p>
+              <PhotoGallery photos={property.photos} />
+            </div>
+          )}
+
           <div className="kpi-card">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">Estado Crítico</p>
             <div className="space-y-4">
