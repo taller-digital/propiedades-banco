@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Building2, FileText, Wrench, FolderOpen, MapPin, User, Calendar, DollarSign, Zap, ChevronLeft, ChevronRight, Shield, Ruler, Tag, Image as ImageIcon } from 'lucide-react';
-import { properties, contracts, maintenanceTickets, expenses, formatCLP, formatDate, getContractSemaphore, getExpenseSemaphore, getDaysRemaining, expenseTypeLabels, assetTagLabels } from '@/data/mockData';
+import { ArrowLeft, Building2, FileText, Wrench, FolderOpen, MapPin, User, Calendar, DollarSign, Zap, ChevronLeft, ChevronRight, Shield, Ruler, Tag, Image as ImageIcon, Download, Loader2, Plus, Pencil, Trash2, X, CheckCircle2, Globe, Home, Briefcase, Clock, MessageSquare } from 'lucide-react';
+import { properties, contracts, maintenanceTickets, expenses, formatCLP, formatDate, getContractSemaphore, getExpenseSemaphore, getDaysRemaining, expenseTypeLabels, assetTagLabels, futureTaskTagLabels, futureTaskTagColors, type FutureTask, type FutureTaskTag } from '@/data/mockData';
 import { useRole } from '@/hooks/useRole';
 import SemaphoreBadge from '@/components/SemaphoreBadge';
+import { generatePropertyPdf } from '@/utils/generatePdf';
+import corporateImg from '@/assets/corporate-building.jpg';
 
-const tabs = ['General', 'Contratos', 'Gastos Generales', 'Mantenimiento', 'Documentos'] as const;
+const tabs = ['General', 'Contratos', 'Gastos Generales', 'Mantenimiento', 'Documentos', 'Tareas Futuras'] as const;
 type Tab = typeof tabs[number];
 
 function PhotoGallery({ photos }: { photos: string[] }) {
@@ -18,28 +20,38 @@ function PhotoGallery({ photos }: { photos: string[] }) {
 
   return (
     <div className="mb-6">
-      {/* Main image */}
-      <div className="relative rounded-lg overflow-hidden bg-muted border border-border aspect-[16/7]">
-        <img
-          src={photos[current]}
-          alt={`Foto ${current + 1}`}
-          className="w-full h-full object-cover"
-        />
-        {photos.length > 1 && (
-          <>
-            <button onClick={prev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-foreground/60 text-background flex items-center justify-center hover:bg-foreground/80 transition-colors active:scale-95">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button onClick={next}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-foreground/60 text-background flex items-center justify-center hover:bg-foreground/80 transition-colors active:scale-95">
-              <ChevronRight className="h-4 w-4" />
-            </button>
-            <div className="absolute bottom-3 right-3 bg-foreground/60 text-background text-[10px] font-mono-numeric px-2 py-0.5 rounded-full">
-              {current + 1} / {photos.length}
-            </div>
-          </>
-        )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Main slider */}
+        <div className="lg:col-span-2 relative rounded-lg overflow-hidden bg-muted border border-border aspect-[16/9]">
+          <img
+            src={photos[current]}
+            alt={`Foto ${current + 1}`}
+            className="w-full h-full object-cover"
+          />
+          {photos.length > 1 && (
+            <>
+              <button onClick={prev}
+                className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-foreground/60 text-background flex items-center justify-center hover:bg-foreground/80 transition-colors active:scale-95">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button onClick={next}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-foreground/60 text-background flex items-center justify-center hover:bg-foreground/80 transition-colors active:scale-95">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <div className="absolute bottom-3 right-3 bg-foreground/60 text-background text-[10px] font-mono-numeric px-2 py-0.5 rounded-full">
+                {current + 1} / {photos.length}
+              </div>
+            </>
+          )}
+        </div>
+        {/* Featured corporate image */}
+        <div className="hidden lg:block rounded-lg overflow-hidden border border-border aspect-[16/9]">
+          <img
+            src={corporateImg}
+            alt="Edificio corporativo"
+            className="w-full h-full object-cover"
+          />
+        </div>
       </div>
       {/* Thumbnails */}
       {photos.length > 1 && (
@@ -62,8 +74,16 @@ export default function PropertyDetailPage() {
   const { role } = useRole();
   const [activeTab, setActiveTab] = useState<Tab>('General');
   const [expenseStatusFilter, setExpenseStatusFilter] = useState<'all' | 'vencido' | 'por_vencer' | 'al_dia'>('all');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
+  // Future tasks state
   const property = properties.find(p => p.id === id);
+  const [localTasks, setLocalTasks] = useState<FutureTask[]>(property?.futureTasks ?? []);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [newTag, setNewTag] = useState<FutureTaskTag>('remodelacion');
+  const [newDesc, setNewDesc] = useState('');
+
   if (!property) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -86,6 +106,34 @@ export default function PropertyDetailPage() {
   const expOverdue = propExpenses.filter(e => e.status === 'vencido').length;
   const expWarning = propExpenses.filter(e => e.status === 'por_vencer').length;
 
+  const handleDownloadPdf = async () => {
+    setIsGeneratingPdf(true);
+    // Small delay for UI feedback
+    await new Promise(r => setTimeout(r, 300));
+    try {
+      generatePropertyPdf(property, propContracts, propExpenses, propTickets);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const addTask = () => {
+    if (!newDesc.trim()) return;
+    const task: FutureTask = { id: `FT-new-${Date.now()}`, tag: newTag, description: newDesc.trim() };
+    setLocalTasks(prev => [...prev, task]);
+    setNewDesc('');
+    setShowAddTask(false);
+  };
+
+  const deleteTask = (taskId: string) => {
+    setLocalTasks(prev => prev.filter(t => t.id !== taskId));
+  };
+
+  const updateTask = (taskId: string, desc: string) => {
+    setLocalTasks(prev => prev.map(t => t.id === taskId ? { ...t, description: desc } : t));
+    setEditingTask(null);
+  };
+
   return (
     <div>
       {/* Breadcrumb */}
@@ -105,21 +153,37 @@ export default function PropertyDetailPage() {
           </Link>
           <div>
             <h1 className="text-xl font-semibold">{property.id} — {property.name}</h1>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className={typeCls}>{typeLabel}</span>
               <span className="text-xs text-muted-foreground">{property.address}, {property.city}</span>
+              {/* Future task tags in header */}
+              {localTasks.length > 0 && (
+                <div className="flex gap-1 flex-wrap">
+                  {localTasks.map(t => (
+                    <span key={t.id} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${futureTaskTagColors[t.tag]}`} title={t.description}>
+                      {futureTaskTagLabels[t.tag]}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
-        {role === 'admin' && (
-          <div className="flex gap-2">
+        <div className="flex gap-2">
+          {role === 'admin' && (
             <button className="h-9 px-4 text-sm font-medium border border-input rounded hover:bg-muted transition-colors active:scale-[0.98]">Editar</button>
-            <button className="h-9 px-4 text-sm font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors active:scale-[0.98]">Descargar PDF</button>
-          </div>
-        )}
+          )}
+          <button
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            className="h-9 px-4 text-sm font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors active:scale-[0.98] inline-flex items-center gap-2 disabled:opacity-60">
+            {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {isGeneratingPdf ? 'Generando...' : 'Descargar PDF'}
+          </button>
+        </div>
       </div>
 
-      {/* Photo Gallery — above Estado Crítico sidebar */}
+      {/* Photo Gallery */}
       <PhotoGallery photos={property.photos} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -135,11 +199,14 @@ export default function PropertyDetailPage() {
                 {tab === 'Gastos Generales' && expOverdue > 0 && (
                   <span className="ml-1.5 bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{expOverdue}</span>
                 )}
+                {tab === 'Tareas Futuras' && localTasks.length > 0 && (
+                  <span className="ml-1.5 bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{localTasks.length}</span>
+                )}
               </button>
             ))}
           </div>
 
-          {/* General — grouped into sections */}
+          {/* General */}
           {activeTab === 'General' && (
             <div className="space-y-6">
               {/* Información General */}
@@ -149,9 +216,14 @@ export default function PropertyDetailPage() {
                   {[
                     { icon: Building2, label: 'Tipo', value: typeLabel },
                     { icon: MapPin, label: 'Dirección', value: `${property.address}, ${property.city}` },
+                    { icon: Globe, label: 'País', value: property.pais },
                     { icon: MapPin, label: 'Región', value: property.region },
+                    { icon: MapPin, label: 'Comuna', value: property.comuna },
+                    { icon: Briefcase, label: 'Sociedad', value: property.sociedad },
                     { icon: User, label: 'Responsable', value: property.responsible },
                     { icon: Building2, label: 'Estado', value: property.status === 'activo' ? 'Activo' : property.status === 'en_mantenimiento' ? 'En Mantención' : 'Inactivo' },
+                    { icon: CheckCircle2, label: 'Habilitada', value: property.habilitada ? 'Sí' : 'No' },
+                    { icon: Home, label: 'Amoblada', value: property.amoblada ? 'Sí' : 'No' },
                   ].map((item, i) => (
                     <div key={i} className="flex items-start gap-3 p-3 border border-border rounded bg-card">
                       <item.icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
@@ -161,13 +233,22 @@ export default function PropertyDetailPage() {
                       </div>
                     </div>
                   ))}
+                  {property.anexo && (
+                    <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                      <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Anexo</p>
+                        <p className="text-sm mt-0.5">{property.anexo}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Información Física */}
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">Información Física</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
                     <Ruler className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                     <div>
@@ -183,6 +264,13 @@ export default function PropertyDetailPage() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                    <Clock className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Antigüedad</p>
+                      <p className="text-sm mt-0.5 font-mono-numeric">{property.antiguedad} ({new Date().getFullYear() - property.antiguedad} años)</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card sm:col-span-2 lg:col-span-3">
                     <Tag className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Tipo de Activo</p>
@@ -200,34 +288,22 @@ export default function PropertyDetailPage() {
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">Información Legal</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
-                    <FileText className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Rol</p>
-                      <p className="text-sm mt-0.5 font-mono-numeric">{property.rol}</p>
+                  {[
+                    { icon: FileText, label: 'Rol', value: property.rol, mono: true },
+                    { icon: User, label: 'RUT Asociado', value: property.rut, mono: true },
+                    { icon: DollarSign, label: 'Avalúo Fiscal', value: formatCLP(property.avaluoFiscal), mono: true },
+                    { icon: DollarSign, label: 'Valor Contribuciones', value: formatCLP(property.valorContribucion), mono: true },
+                    { icon: DollarSign, label: 'Valor Libro', value: formatCLP(property.valorLibro), mono: true },
+                    { icon: Calendar, label: 'Último Pago', value: property.ultimoPago ? formatDate(property.ultimoPago) : '—', mono: true },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                      <item.icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{item.label}</p>
+                        <p className={`text-sm mt-0.5 ${item.mono ? 'font-mono-numeric' : ''}`}>{item.value}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
-                    <User className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">RUT Asociado</p>
-                      <p className="text-sm mt-0.5 font-mono-numeric">{property.rut}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
-                    <DollarSign className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Avalúo Fiscal</p>
-                      <p className="text-sm mt-0.5 font-mono-numeric">{formatCLP(property.avaluoFiscal)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
-                    <DollarSign className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Valor de Contribución</p>
-                      <p className="text-sm mt-0.5 font-mono-numeric">{formatCLP(property.valorContribucion)}</p>
-                    </div>
-                  </div>
+                  ))}
                   <div className="flex items-start gap-3 p-3 border border-border rounded bg-card sm:col-span-2">
                     <Shield className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                     <div>
@@ -274,6 +350,17 @@ export default function PropertyDetailPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Observaciones */}
+              {property.observaciones && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-3">Observaciones</p>
+                  <div className="flex items-start gap-3 p-3 border border-border rounded bg-card">
+                    <MessageSquare className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                    <p className="text-sm">{property.observaciones}</p>
+                  </div>
+                </div>
+              )}
 
               {/* Multimedia */}
               <div>
@@ -422,6 +509,85 @@ export default function PropertyDetailPage() {
               </div>
             </div>
           )}
+
+          {/* Tareas Futuras */}
+          {activeTab === 'Tareas Futuras' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">{localTasks.length} tarea(s) registrada(s)</p>
+                <button onClick={() => setShowAddTask(true)}
+                  className="h-8 px-3 text-xs font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5">
+                  <Plus className="h-3.5 w-3.5" /> Agregar Tarea
+                </button>
+              </div>
+
+              {/* Add form */}
+              {showAddTask && (
+                <div className="border border-primary/30 rounded-lg p-4 bg-primary/5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">Nueva Tarea Futura</p>
+                    <button onClick={() => setShowAddTask(false)} className="p-1 hover:bg-muted rounded"><X className="h-4 w-4" /></button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">Tipo de Tarea</label>
+                      <select value={newTag} onChange={e => setNewTag(e.target.value as FutureTaskTag)}
+                        className="w-full h-9 text-sm border border-input rounded bg-card px-2 focus:outline-none focus:ring-1 focus:ring-ring">
+                        {(Object.keys(futureTaskTagLabels) as FutureTaskTag[]).map(tag => (
+                          <option key={tag} value={tag}>{futureTaskTagLabels[tag]}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">Descripción</label>
+                      <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Detalle de la tarea..."
+                        className="w-full h-9 text-sm border border-input rounded bg-card px-3 focus:outline-none focus:ring-1 focus:ring-ring" />
+                    </div>
+                  </div>
+                  <button onClick={addTask} disabled={!newDesc.trim()}
+                    className="h-8 px-4 text-xs font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 transition-colors">
+                    Guardar
+                  </button>
+                </div>
+              )}
+
+              {/* Tasks list */}
+              {localTasks.length === 0 && !showAddTask ? (
+                <p className="text-sm text-muted-foreground py-8 text-center">No hay tareas futuras registradas.</p>
+              ) : (
+                <div className="space-y-2">
+                  {localTasks.map(task => (
+                    <div key={task.id} className="border border-border rounded p-4 bg-card flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${futureTaskTagColors[task.tag]}`}>
+                          {futureTaskTagLabels[task.tag]}
+                        </span>
+                        {editingTask === task.id ? (
+                          <input
+                            defaultValue={task.description}
+                            onBlur={e => updateTask(task.id, e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') updateTask(task.id, (e.target as HTMLInputElement).value); }}
+                            autoFocus
+                            className="w-full mt-2 h-8 text-sm border border-input rounded bg-card px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+                          />
+                        ) : (
+                          <p className="text-sm mt-2">{task.description}</p>
+                        )}
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <button onClick={() => setEditingTask(task.id)} className="p-1.5 hover:bg-muted rounded transition-colors" title="Editar">
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                        <button onClick={() => deleteTask(task.id)} className="p-1.5 hover:bg-red-50 rounded transition-colors" title="Eliminar">
+                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right sidebar */}
@@ -494,6 +660,10 @@ export default function PropertyDetailPage() {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Fotos</span>
                 <span className="font-mono-numeric">{property.photos.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tareas futuras</span>
+                <span className="font-mono-numeric">{localTasks.length}</span>
               </div>
             </div>
           </div>

@@ -6,6 +6,33 @@ export type UserRole = 'admin' | 'operaciones' | 'jefatura';
 export type ExpenseType = 'luz' | 'agua' | 'gastos_comunes' | 'internet' | 'otros';
 export type SemaphoreStatus = 'al_dia' | 'por_vencer' | 'vencido';
 export type AssetTag = 'comercial' | 'residencial' | 'industrial' | 'oficina' | 'mixto' | 'terreno' | 'bodega';
+export type FutureTaskTag = 'remodelacion' | 'cierre' | 'nuevo' | 'ampliacion' | 'venta' | 'arriendo' | 'regularizacion';
+
+export interface FutureTask {
+  id: string;
+  tag: FutureTaskTag;
+  description: string;
+}
+
+export const futureTaskTagLabels: Record<FutureTaskTag, string> = {
+  remodelacion: 'Remodelación',
+  cierre: 'Cierre',
+  nuevo: 'Nuevo',
+  ampliacion: 'Ampliación',
+  venta: 'Venta',
+  arriendo: 'Arriendo',
+  regularizacion: 'Regularización',
+};
+
+export const futureTaskTagColors: Record<FutureTaskTag, string> = {
+  remodelacion: 'bg-amber-100 text-amber-800',
+  cierre: 'bg-red-100 text-red-800',
+  nuevo: 'bg-emerald-100 text-emerald-800',
+  ampliacion: 'bg-blue-100 text-blue-800',
+  venta: 'bg-purple-100 text-purple-800',
+  arriendo: 'bg-indigo-100 text-indigo-800',
+  regularizacion: 'bg-orange-100 text-orange-800',
+};
 
 export interface Property {
   id: string;
@@ -21,18 +48,32 @@ export interface Property {
   riskLevel: 'ok' | 'warning' | 'critical';
   lat: number;
   lng: number;
-  // New fields
+  // Legal / identity
   rol: string;
-  seguros: string[];
-  photos: string[];
-  avaluoFiscal: number;
   rut: string;
+  avaluoFiscal: number;
+  valorContribucion: number;
+  seguros: string[];
+  escritura: string | null;
+  planos: string[];
+  // Physical
   assetTags: AssetTag[];
   m2Construidos: number;
   m2Terreno: number;
-  escritura: string | null;
-  planos: string[];
-  valorContribucion: number;
+  photos: string[];
+  // New fields
+  anexo: string;
+  sociedad: string;
+  pais: string;
+  comuna: string;
+  habilitada: boolean;
+  amoblada: boolean;
+  antiguedad: number; // year built
+  valorLibro: number;
+  ultimoPago: string | null;
+  observaciones: string;
+  // Future tasks
+  futureTasks: FutureTask[];
 }
 
 export interface Contract {
@@ -159,6 +200,7 @@ export const assetTagLabels: Record<AssetTag, string> = {
 // ── Data generation ──
 
 const cities = ['Santiago Centro', 'Las Condes', 'Providencia', 'Vitacura', 'Ñuñoa', 'La Florida', 'Maipú', 'Concepción', 'Valparaíso', 'Antofagasta', 'Temuco', 'Puerto Montt'];
+const comunas = ['Santiago', 'Las Condes', 'Providencia', 'Vitacura', 'Ñuñoa', 'La Florida', 'Maipú', 'Concepción', 'Valparaíso', 'Antofagasta', 'Temuco', 'Puerto Montt'];
 const regions = ['Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Metropolitana', 'Biobío', 'Valparaíso', 'Antofagasta', 'Araucanía', 'Los Lagos'];
 const cityCoords: [number, number][] = [
   [-33.4489, -70.6693], [-33.4080, -70.5670], [-33.4264, -70.6100], [-33.3850, -70.5790],
@@ -167,6 +209,7 @@ const cityCoords: [number, number][] = [
 ];
 const responsibles = ['Juan Pérez', 'María González', 'Carlos López', 'Ana Rodríguez', 'Pedro Martínez', 'Sofía Torres', 'Diego Herrera'];
 const counterparts = ['Inmobiliaria Andes SpA', 'Corp. Bienes Raíces Pacífico', 'Gestión Inmuebles Sur Ltda.', 'Inversiones Norte S.A.', 'Holding Territorial Central'];
+const sociedades = ['Banco Nacional S.A.', 'Filial Inmobiliaria SpA', 'Holding Financiero Ltda.', 'Sociedad de Inversiones Central S.A.'];
 
 const samplePhotos = [
   'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&h=600&fit=crop',
@@ -181,6 +224,17 @@ const samplePhotos = [
 
 const segurosOptions = ['Incendio', 'Terremoto', 'Robo', 'Responsabilidad Civil', 'Todo Riesgo', 'Daños a Terceros'];
 const allTags: AssetTag[] = ['comercial', 'residencial', 'industrial', 'oficina', 'mixto', 'terreno', 'bodega'];
+const allFutureTags: FutureTaskTag[] = ['remodelacion', 'cierre', 'nuevo', 'ampliacion', 'venta', 'arriendo', 'regularizacion'];
+
+const futureTaskDescriptions: Record<FutureTaskTag, string[]> = {
+  remodelacion: ['Remodelación de oficinas piso 2 en noviembre', 'Actualización de fachada exterior', 'Renovación de baños comunes'],
+  cierre: ['Cierre definitivo por reorganización', 'Cierre temporal por mantención estructural'],
+  nuevo: ['Nueva sucursal en operación Q1 2027', 'Nuevo punto de atención al cliente'],
+  ampliacion: ['Ampliación de bodega lateral', 'Ampliación segundo piso oficinas'],
+  venta: ['En proceso de tasación para venta', 'Venta programada Q2 2027'],
+  arriendo: ['Buscar nuevo arrendatario', 'Renovación de contrato de arriendo'],
+  regularizacion: ['Regularización de permisos municipales', 'Regularización de escritura'],
+};
 
 function randomFrom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -206,6 +260,17 @@ function generateRut(seed: number): string {
   return `${body}-${dv}`;
 }
 
+function generateFutureTasks(seed: number): FutureTask[] {
+  if (seed % 3 === 0) return []; // ~1/3 have no tasks
+  const count = 1 + (seed % 3);
+  const tags = randomSubset(allFutureTags, 1, count);
+  return tags.map((tag, i) => ({
+    id: `FT-${seed}-${i}`,
+    tag,
+    description: randomFrom(futureTaskDescriptions[tag]),
+  }));
+}
+
 function generateProperties(count: number): Property[] {
   const types: PropertyType[] = ['interno', 'arrendatario', 'arrendador'];
   const risks: Property['riskLevel'][] = ['ok', 'warning', 'critical'];
@@ -219,6 +284,10 @@ function generateProperties(count: number): Property[] {
     const [baseLat, baseLng] = cityCoords[cityIdx];
     const m2Terreno = 100 + Math.floor(Math.random() * 3000);
     const m2Construidos = Math.floor(m2Terreno * (0.3 + Math.random() * 0.6));
+    const lastPayOffset = Math.floor(Math.random() * 90);
+    const lastPayDate = new Date();
+    lastPayDate.setDate(lastPayDate.getDate() - lastPayOffset);
+
     return {
       id: `INM-${String(i + 1).padStart(4, '0')}`,
       name: `${randomFrom(names)} ${cities[cityIdx]}`,
@@ -233,7 +302,7 @@ function generateProperties(count: number): Property[] {
       riskLevel: randomFrom(risks),
       lat: baseLat + (Math.random() - 0.5) * 0.04,
       lng: baseLng + (Math.random() - 0.5) * 0.04,
-      // New fields
+      // Legal
       rol: `${100 + Math.floor(Math.random() * 900)}-${Math.floor(Math.random() * 9000)}`,
       seguros: randomSubset(segurosOptions, 1, 3),
       photos: randomSubset(samplePhotos, 2, 5),
@@ -245,6 +314,18 @@ function generateProperties(count: number): Property[] {
       escritura: i % 3 === 0 ? `Escritura_INM-${String(i + 1).padStart(4, '0')}.pdf` : null,
       planos: i % 2 === 0 ? [`Plano_Piso1_INM-${String(i + 1).padStart(4, '0')}.pdf`, `Plano_Piso2_INM-${String(i + 1).padStart(4, '0')}.pdf`] : [],
       valorContribucion: Math.floor(Math.random() * 5000000) + 200000,
+      // New fields
+      anexo: i % 4 === 0 ? `Anexo-${String(i + 1).padStart(3, '0')}` : '',
+      sociedad: randomFrom(sociedades),
+      pais: 'Chile',
+      comuna: comunas[cityIdx],
+      habilitada: i % 5 !== 0,
+      amoblada: i % 3 === 0,
+      antiguedad: 1980 + Math.floor(Math.random() * 44),
+      valorLibro: Math.floor(Math.random() * 500000000) + 30000000,
+      ultimoPago: i % 6 !== 0 ? lastPayDate.toISOString().split('T')[0] : null,
+      observaciones: i % 4 === 0 ? 'Inmueble en buenas condiciones generales. Requiere mantención preventiva de HVAC.' : '',
+      futureTasks: generateFutureTasks(i),
     };
   });
 }

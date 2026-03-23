@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-import { properties, type PropertyType, type PropertyStatus } from '@/data/mockData';
+import { properties, type PropertyType, type PropertyStatus, type FutureTaskTag, futureTaskTagLabels, futureTaskTagColors } from '@/data/mockData';
 
 const PAGE_SIZE = 15;
 
@@ -25,19 +25,28 @@ export default function PropertiesPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<PropertyType | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('all');
+  const [tagFilter, setTagFilter] = useState<FutureTaskTag | 'all'>('all');
   const [page, setPage] = useState(1);
+
+  // Gather all unique tags
+  const allUsedTags = useMemo(() => {
+    const tagSet = new Set<FutureTaskTag>();
+    properties.forEach(p => p.futureTasks.forEach(t => tagSet.add(t.tag)));
+    return Array.from(tagSet).sort();
+  }, []);
 
   const filtered = useMemo(() => {
     return properties.filter(p => {
       if (typeFilter !== 'all' && p.type !== typeFilter) return false;
       if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+      if (tagFilter !== 'all' && !p.futureTasks.some(t => t.tag === tagFilter)) return false;
       if (search) {
         const q = search.toLowerCase();
         return p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q) || p.city.toLowerCase().includes(q);
       }
       return true;
     });
-  }, [search, typeFilter, statusFilter]);
+  }, [search, typeFilter, statusFilter, tagFilter]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -63,7 +72,7 @@ export default function PropertiesPage() {
             className="w-full h-9 pl-9 pr-3 text-sm border border-input rounded bg-card focus:outline-none focus:ring-1 focus:ring-ring"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <div className="flex items-center gap-1.5">
             <Filter className="h-3.5 w-3.5 text-muted-foreground" />
             <select
@@ -87,6 +96,16 @@ export default function PropertiesPage() {
             <option value="en_mantenimiento">En Mantención</option>
             <option value="inactivo">Inactivo</option>
           </select>
+          <select
+            value={tagFilter}
+            onChange={e => { setTagFilter(e.target.value as any); setPage(1); }}
+            className="h-9 text-sm border border-input rounded bg-card px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="all">Todas las tareas</option>
+            {allUsedTags.map(tag => (
+              <option key={tag} value={tag}>{futureTaskTagLabels[tag]}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -101,7 +120,7 @@ export default function PropertiesPage() {
                 <th className="table-header-cell text-left">Tipo</th>
                 <th className="table-header-cell text-left">Estado</th>
                 <th className="table-header-cell text-left">Ciudad</th>
-                <th className="table-header-cell text-left">Responsable</th>
+                <th className="table-header-cell text-left">Tareas</th>
                 <th className="table-header-cell text-right">m² Constr.</th>
               </tr>
             </thead>
@@ -117,7 +136,19 @@ export default function PropertiesPage() {
                   <td className="px-4 py-3"><StatusBadge type={p.type} /></td>
                   <td className="px-4 py-3"><PropertyStatusBadge status={p.status} /></td>
                   <td className="px-4 py-3 text-muted-foreground">{p.city}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{p.responsible}</td>
+                  <td className="px-4 py-3">
+                    {p.futureTasks.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {p.futureTasks.map(t => (
+                          <span key={t.id} className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full ${futureTaskTagColors[t.tag]}`} title={t.description}>
+                            {futureTaskTagLabels[t.tag]}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 font-mono-numeric text-right">{p.m2Construidos.toLocaleString('es-CL')}</td>
                 </tr>
               ))}
