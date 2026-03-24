@@ -6,7 +6,7 @@ import { useRole } from '@/hooks/useRole';
 import SemaphoreBadge from '@/components/SemaphoreBadge';
 import { generatePropertyPdf } from '@/utils/generatePdf';
 
-const tabs = ['General', 'Contratos', 'Gastos Generales', 'Mantenimiento', 'Documentos', 'Tareas Futuras'] as const;
+const tabs = ['General', 'Contratos', 'Gastos Generales', 'Mantenimiento', 'Documentos', 'Planificación'] as const;
 type Tab = typeof tabs[number];
 
 const CAROUSEL_VISIBLE = 5;
@@ -309,7 +309,7 @@ export default function PropertyDetailPage() {
                 {tab === 'Gastos Generales' && expOverdue > 0 && (
                   <span className="ml-1.5 bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{expOverdue}</span>
                 )}
-                {tab === 'Tareas Futuras' && localTasks.length > 0 && (
+                {tab === 'Planificación' && localTasks.length > 0 && (
                   <span className="ml-1.5 bg-blue-100 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{localTasks.length}</span>
                 )}
               </button>
@@ -620,14 +620,14 @@ export default function PropertyDetailPage() {
             </div>
           )}
 
-          {/* Tareas Futuras */}
-          {activeTab === 'Tareas Futuras' && (
+          {/* Planificación */}
+          {activeTab === 'Planificación' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{localTasks.length} tarea(s) registrada(s)</p>
+                <p className="text-sm text-muted-foreground">{localTasks.length} ítem(s) de planificación</p>
                 <button onClick={() => setShowAddTask(true)}
                   className="h-8 px-3 text-xs font-medium bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5">
-                  <Plus className="h-3.5 w-3.5" /> Agregar Tarea
+                  <Plus className="h-3.5 w-3.5" /> Agregar
                 </button>
               </div>
 
@@ -635,12 +635,12 @@ export default function PropertyDetailPage() {
               {showAddTask && (
                 <div className="border border-primary/30 rounded-lg p-4 bg-primary/5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold">Nueva Tarea Futura</p>
+                    <p className="text-sm font-semibold">Nueva Planificación</p>
                     <button onClick={() => setShowAddTask(false)} className="p-1 hover:bg-muted rounded"><X className="h-4 w-4" /></button>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs font-medium text-muted-foreground block mb-1">Tipo de Tarea</label>
+                      <label className="text-xs font-medium text-muted-foreground block mb-1">Tipo</label>
                       <select value={newTag} onChange={e => setNewTag(e.target.value as FutureTaskTag)}
                         className="w-full h-9 text-sm border border-input rounded bg-card px-2 focus:outline-none focus:ring-1 focus:ring-ring">
                         {(Object.keys(futureTaskTagLabels) as FutureTaskTag[]).map(tag => (
@@ -650,7 +650,7 @@ export default function PropertyDetailPage() {
                     </div>
                     <div>
                       <label className="text-xs font-medium text-muted-foreground block mb-1">Descripción</label>
-                      <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Detalle de la tarea..."
+                      <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Detalle..."
                         className="w-full h-9 text-sm border border-input rounded bg-card px-3 focus:outline-none focus:ring-1 focus:ring-ring" />
                     </div>
                   </div>
@@ -661,9 +661,9 @@ export default function PropertyDetailPage() {
                 </div>
               )}
 
-              {/* Tasks list */}
+              {/* Planning list */}
               {localTasks.length === 0 && !showAddTask ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No hay tareas futuras registradas.</p>
+                <p className="text-sm text-muted-foreground py-8 text-center">No hay planificación registrada.</p>
               ) : (
                 <div className="space-y-2">
                   {localTasks.map(task => (
@@ -780,7 +780,7 @@ export default function PropertyDetailPage() {
                 <span className="font-mono-numeric">{property.photos.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Tareas futuras</span>
+                <span className="text-muted-foreground">Planificación</span>
                 <span className="font-mono-numeric">{localTasks.length}</span>
               </div>
             </div>

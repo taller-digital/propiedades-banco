@@ -270,7 +270,7 @@ function PlanificacionSummary() {
     <div className="kpi-card">
       <div className="flex items-center justify-between mb-4">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Planificación</p>
-        <span className="text-[10px] text-muted-foreground">{totalWithTasks} inmuebles con tareas</span>
+        <span className="text-[10px] text-muted-foreground">{totalWithTasks} inmuebles con planificación</span>
       </div>
       {byTag.length === 0 ? (
         <p className="text-xs text-muted-foreground">Sin tareas de planificación registradas.</p>

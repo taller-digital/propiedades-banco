@@ -36,10 +36,15 @@ function PropertyStatusBadge({ status }: { status: PropertyStatus }) {
 export default function PropertiesPage() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<PropertyType | 'all'>('all');
-  const [statusFilter, setStatusFilter] = useState<PropertyStatus | 'all'>('all');
-  const [tagFilter, setTagFilter] = useState<FutureTaskTag | 'all'>('all');
-  const [comunaFilter, setComunaFilter] = useState<string>('all');
+  const [typeFilters, setTypeFilters] = useState<PropertyType[]>([]);
+  const [statusFilters, setStatusFilters] = useState<PropertyStatus[]>([]);
+  const [tagFilters, setTagFilters] = useState<FutureTaskTag[]>([]);
+  const [comunaFilters, setComunaFilters] = useState<string[]>([]);
+
+  function toggleIn<T extends string>(arr: T[], val: T, setter: (a: T[]) => void) {
+    setter(arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]);
+    setPage(1);
+  }
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [page, setPage] = useState(1);
 
@@ -57,27 +62,30 @@ export default function PropertiesPage() {
 
   const filtered = useMemo(() => {
     return properties.filter(p => {
-      if (typeFilter !== 'all' && p.type !== typeFilter) return false;
-      if (statusFilter !== 'all' && p.status !== statusFilter) return false;
-      if (tagFilter !== 'all' && !p.futureTasks.some(t => t.tag === tagFilter)) return false;
-      if (comunaFilter !== 'all' && p.comuna !== comunaFilter) return false;
+      if (typeFilters.length > 0 && !typeFilters.includes(p.type)) return false;
+      if (statusFilters.length > 0 && !statusFilters.includes(p.status)) return false;
+      if (tagFilters.length > 0 && !p.futureTasks.some(t => tagFilters.includes(t.tag))) return false;
+      if (comunaFilters.length > 0 && !comunaFilters.includes(p.comuna)) return false;
       if (search) {
         const q = search.toLowerCase();
         return p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q) || p.city.toLowerCase().includes(q) || p.comuna.toLowerCase().includes(q);
       }
       return true;
     });
-  }, [search, typeFilter, statusFilter, tagFilter, comunaFilter]);
+  }, [search, typeFilters, statusFilters, tagFilters, comunaFilters]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // Active filter chips
-  const activeFilters: { label: string; clear: () => void }[] = [];
-  if (typeFilter !== 'all') activeFilters.push({ label: `Tipo: ${propertyTypeLabels[typeFilter]}`, clear: () => { setTypeFilter('all'); setPage(1); } });
-  if (statusFilter !== 'all') activeFilters.push({ label: `Estado: ${statusFilter === 'activo' ? 'Activo' : statusFilter === 'en_mantenimiento' ? 'En Mantención' : 'Inactivo'}`, clear: () => { setStatusFilter('all'); setPage(1); } });
-  if (tagFilter !== 'all') activeFilters.push({ label: `Planif.: ${futureTaskTagLabels[tagFilter]}`, clear: () => { setTagFilter('all'); setPage(1); } });
-  if (comunaFilter !== 'all') activeFilters.push({ label: `Comuna: ${comunaFilter}`, clear: () => { setComunaFilter('all'); setPage(1); } });
+  const statusLabels: Record<PropertyStatus, string> = { activo: 'Activo', en_mantenimiento: 'En Mantención', inactivo: 'Inactivo' };
+
+  // Active filter chips — one chip per selected value
+  const activeFilters: { label: string; clear: () => void }[] = [
+    ...typeFilters.map(t => ({ label: `Tipo: ${propertyTypeLabels[t]}`, clear: () => { setTypeFilters(prev => prev.filter(x => x !== t)); setPage(1); } })),
+    ...statusFilters.map(s => ({ label: `Estado: ${statusLabels[s]}`, clear: () => { setStatusFilters(prev => prev.filter(x => x !== s)); setPage(1); } })),
+    ...tagFilters.map(tag => ({ label: `Planif.: ${futureTaskTagLabels[tag]}`, clear: () => { setTagFilters(prev => prev.filter(x => x !== tag)); setPage(1); } })),
+    ...comunaFilters.map(c => ({ label: `Comuna: ${c}`, clear: () => { setComunaFilters(prev => prev.filter(x => x !== c)); setPage(1); } })),
+  ];
 
   return (
     <div>
@@ -116,30 +124,30 @@ export default function PropertiesPage() {
         <div className="flex gap-2 flex-wrap">
           <div className="flex items-center gap-1.5">
             <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-            <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value as any); setPage(1); }}
+            <select value="" onChange={e => toggleIn(typeFilters, e.target.value as PropertyType, setTypeFilters)}
               className="h-9 text-sm border border-input rounded bg-card px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-              <option value="all">Todos los tipos</option>
-              <option value="work_cafe">Work Café</option>
-              <option value="oficina_central">Oficina Central</option>
-              <option value="sucursal">Sucursal</option>
+              <option value="" disabled>Tipo{typeFilters.length > 0 ? ` (${typeFilters.length})` : ''}</option>
+              {(['work_cafe', 'oficina_central', 'sucursal'] as PropertyType[]).map(t => (
+                <option key={t} value={t}>{typeFilters.includes(t) ? '✓ ' : ''}{propertyTypeLabels[t]}</option>
+              ))}
             </select>
           </div>
-          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value as any); setPage(1); }}
+          <select value="" onChange={e => toggleIn(statusFilters, e.target.value as PropertyStatus, setStatusFilters)}
             className="h-9 text-sm border border-input rounded bg-card px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-            <option value="all">Todos los estados</option>
-            <option value="activo">Activo</option>
-            <option value="en_mantenimiento">En Mantención</option>
-            <option value="inactivo">Inactivo</option>
+            <option value="" disabled>Estado{statusFilters.length > 0 ? ` (${statusFilters.length})` : ''}</option>
+            <option value="activo">{statusFilters.includes('activo') ? '✓ ' : ''}Activo</option>
+            <option value="en_mantenimiento">{statusFilters.includes('en_mantenimiento') ? '✓ ' : ''}En Mantención</option>
+            <option value="inactivo">{statusFilters.includes('inactivo') ? '✓ ' : ''}Inactivo</option>
           </select>
-          <select value={comunaFilter} onChange={e => { setComunaFilter(e.target.value); setPage(1); }}
+          <select value="" onChange={e => toggleIn(comunaFilters, e.target.value, setComunaFilters)}
             className="h-9 text-sm border border-input rounded bg-card px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-            <option value="all">Todas las comunas</option>
-            {allComunas.map(c => <option key={c} value={c}>{c}</option>)}
+            <option value="" disabled>Comuna{comunaFilters.length > 0 ? ` (${comunaFilters.length})` : ''}</option>
+            {allComunas.map(c => <option key={c} value={c}>{comunaFilters.includes(c) ? '✓ ' : ''}{c}</option>)}
           </select>
-          <select value={tagFilter} onChange={e => { setTagFilter(e.target.value as any); setPage(1); }}
+          <select value="" onChange={e => toggleIn(tagFilters, e.target.value as FutureTaskTag, setTagFilters)}
             className="h-9 text-sm border border-input rounded bg-card px-2 focus:outline-none focus:ring-1 focus:ring-ring">
-            <option value="all">Toda planificación</option>
-            {allUsedTags.map(tag => <option key={tag} value={tag}>{futureTaskTagLabels[tag]}</option>)}
+            <option value="" disabled>Planif.{tagFilters.length > 0 ? ` (${tagFilters.length})` : ''}</option>
+            {allUsedTags.map(tag => <option key={tag} value={tag}>{tagFilters.includes(tag) ? '✓ ' : ''}{futureTaskTagLabels[tag]}</option>)}
           </select>
         </div>
       </div>
@@ -154,7 +162,7 @@ export default function PropertiesPage() {
             </span>
           ))}
           <button
-            onClick={() => { setTypeFilter('all'); setStatusFilter('all'); setTagFilter('all'); setComunaFilter('all'); setSearch(''); setPage(1); }}
+            onClick={() => { setTypeFilters([]); setStatusFilters([]); setTagFilters([]); setComunaFilters([]); setSearch(''); setPage(1); }}
             className="text-xs text-muted-foreground hover:text-foreground underline">
             Limpiar todo
           </button>
